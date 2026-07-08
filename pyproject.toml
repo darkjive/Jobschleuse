@@ -1,0 +1,27 @@
+[project]
+name = "bewerbungs-pipeline"
+version = "0.1.0"
+description = "Stellen finden und Bewerbungsvorlage per LLM füllen"
+requires-python = ">=3.13"
+dependencies = [
+    "httpx",
+    "pydantic",
+    "openai",
+    "beautifulsoup4",
+    "lxml",
+    "pyyaml",
+    "python-dotenv",
+]
+
+[project.scripts]
+jobs = "bewerbungs_pipeline.cli:main"
+
+[dependency-groups]
+dev = ["pytest"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bewerbungs_pipeline"]
