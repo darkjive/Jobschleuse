@@ -32,7 +32,12 @@ personalisieren, in die Vorlage einsetzen.
 **Geprüft und verworfen:** Firecrawl (Bezahl-SaaS, macht dasselbe wie
 Crawl4AI), Crawlee (Node-Stack, kein Mehrwert), curl-impersonate (steckt
 bereits in Scrapling via curl_cffi), AutoScraper (unmaintained seit 2022,
-durch LLM-Extraktion obsolet).
+durch LLM-Extraktion obsolet), Playwright direkt (ist bereits die Engine
+von Crawl4AI), Puppeteer/Selenium (älter, kein Vorteil), PySpider (tot),
+Nutch/StormCrawler/Heritrix/Colly/Katana (Suchmaschinen-/Recon-Infrastruktur,
+Overkill), ScrapeGraphAI/LLM Scraper (duplizieren unsere LLM-Extraktion),
+fastCRW (jung, kein Vorteil bei diesem Umfang), Maxun/browserless/
+chromedp/Rod (Skalierungs-/Go-Infra, Overkill für Solo-Betrieb).
 
 **Rechtlicher Hinweis:** Crawl4AI/Scrapling lösen das technische Blocking,
 nicht die ToS. Indeed/StepStone verbieten Scraping vertraglich — nutzbar,
@@ -118,7 +123,8 @@ Firmenname kommt vor. Bei Fehlschlag genau ein Retry, dann Abbruch mit Log.
 - Python 3.13 via `uv` (Versionsverwaltung wie nvm: `uv venv --python 3.13`)
 - Projekt: `/home/a/Dev/bewerbungs-pipeline`
 - Dependencies: `httpx`, `crawl4ai`, `openai` (Client für jeden
-  OpenAI-kompatiblen Endpoint); `scrapling` nur bei Bedarf
+  OpenAI-kompatiblen Endpoint), `beautifulsoup4` + `lxml` (Slot-Ersetzung
+  in der Vorlage); `scrapling` nur bei Bedarf
 - Secrets in `.env`, nie im Code
 - Tests: Unit-Tests für Slot-Ersetzung und JobItem-Validierung mit
   Fixtures (kein Netz in Tests)
