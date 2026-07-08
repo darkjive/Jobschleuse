@@ -43,6 +43,9 @@ class _SlotParser(HTMLParser):
         if slot_name is not None and tag in _VOID_ELEMENTS:
             raise ValueError(f"Slot auf leerem Element nicht unterstützt: {slot_name}")
 
+        if slot_name is not None and self._stack:
+            raise ValueError(f"Verschachtelte Slots nicht unterstützt: {tag}")
+
         # Falls wir gerade in einem Slot stecken und ein gleichnamiger Tag
         # öffnet, Verschachtelungstiefe hochzählen, damit handle_endtag
         # den richtigen End-Tag matcht.
@@ -90,6 +93,9 @@ def _parse(source: str) -> dict[str, tuple[int, int]]:
     parser = _SlotParser(source)
     parser.feed(source)
     parser.close()
+    if parser._stack:
+        pending_slot = parser._stack[-1]
+        raise ValueError(f"Slot nicht geschlossen: {pending_slot['slot']}")
     return parser.ranges
 
 

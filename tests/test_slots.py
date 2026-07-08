@@ -71,3 +71,22 @@ def test_nested_markup_inside_slot_is_replaced_whole():
 def test_slot_on_void_element_raises():
     with pytest.raises(ValueError, match="leerem Element"):
         extract_slots('<img data-slot="bild" src="x.png">')
+
+
+def test_nested_slots_raise():
+    html = '<div data-slot="outer">AAA<p data-slot="inner">x</p>BBB</div>'
+    with pytest.raises(ValueError, match="Verschachtelte Slots"):
+        extract_slots(html)
+    with pytest.raises(ValueError, match="Verschachtelte Slots"):
+        fill_slots(html, {"outer": "O"})
+
+
+def test_nested_same_tag_slots_raise():
+    html = '<div data-slot="a">x<div data-slot="b">y</div>z</div>'
+    with pytest.raises(ValueError, match="Verschachtelte Slots"):
+        extract_slots(html)
+
+
+def test_unclosed_slot_raises():
+    with pytest.raises(ValueError, match="nicht geschlossen"):
+        extract_slots('<div data-slot="offen">Text ohne Ende')
