@@ -1,0 +1,25 @@
+{
+  "ergebnisliste": [
+    {
+      "stellenangebotsTitel": "Mechatroniker (m/w/d)",
+      "referenznummer": "10001-1000012345-S",
+      "firma": "AC Motoren GmbH",
+      "datumErsteVeroeffentlichung": "2026-07-01",
+      "stellenlokationen": [
+        {"adresse": {"plz": "64859", "ort": "Eppertshausen", "region": "Hessen"}}
+      ],
+      "externeURL": null
+    },
+    {
+      "stellenangebotsTitel": "Servicetechniker (m/w/d)",
+      "referenznummer": "10001-1000067890-S",
+      "firma": "Beispiel AG",
+      "datumErsteVeroeffentlichung": "2026-07-05",
+      "stellenlokationen": [
+        {"adresse": {"plz": "60311", "ort": "Frankfurt am Main", "region": "Hessen"}}
+      ],
+      "externeURL": "https://karriere.beispiel.de/job/42"
+    }
+  ],
+  "maxErgebnisse": 2
+}
