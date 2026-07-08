@@ -40,3 +40,34 @@ def test_fill_slots_partial_is_allowed():
 def test_fill_unknown_slot_raises():
     with pytest.raises(ValueError, match="nicht in Vorlage"):
         fill_slots(TEMPLATE, {"gibtsnicht": "x"})
+
+
+def test_fill_preserves_static_bytes_exactly():
+    html = (
+        "<!DOCTYPE html>\n<html lang='de'>\n<head>\n"
+        '  <meta charset="utf-8">\n'
+        "  <style>.x  {color:red}</style>\n</head>\n<body>\n"
+        "  <p data-slot=\"gruss\">Alt</p>\n"
+        "  <br>\n  <img src='x.png'>\n"
+        '  <svg viewBox="0 0 1 1"><path d="M0 0"/></svg>\n'
+        "  <pre>  exakt   so  </pre>\n</body>\n</html>\n"
+    )
+    result = fill_slots(html, {"gruss": "Neu & <gut>"})
+    expected = html.replace(">Alt<", ">Neu &amp; &lt;gut&gt;<")
+    assert result == expected
+
+
+def test_fill_without_values_returns_input_unchanged():
+    html = '<p data-slot="a">x</p><meta charset="utf-8">'
+    assert fill_slots(html, {}) == html
+
+
+def test_nested_markup_inside_slot_is_replaced_whole():
+    html = '<div data-slot="m"><p>alt <strong>fett</strong></p></div><div>bleibt</div>'
+    result = fill_slots(html, {"m": "neu"})
+    assert result == '<div data-slot="m">neu</div><div>bleibt</div>'
+
+
+def test_slot_on_void_element_raises():
+    with pytest.raises(ValueError, match="leerem Element"):
+        extract_slots('<img data-slot="bild" src="x.png">')

@@ -7,8 +7,6 @@ dependencies = [
     "httpx",
     "pydantic",
     "openai",
-    "beautifulsoup4",
-    "lxml",
     "pyyaml",
     "python-dotenv",
 ]
