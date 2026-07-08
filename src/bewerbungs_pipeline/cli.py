@@ -43,8 +43,18 @@ def _set_status(job_id: int, status: str) -> int:
 
 
 def _cmd_generate(args: argparse.Namespace) -> int:
-    print("generate ist noch nicht implementiert (kommt in Task 7).", file=sys.stderr)
-    return 1
+    from .generate import generate_application
+    from .llm import make_client
+
+    cfg = load_config()
+    if not (cfg.llm_base_url and cfg.llm_api_key and cfg.llm_model):
+        print("LLM_BASE_URL, LLM_API_KEY und LLM_MODEL in .env setzen.", file=sys.stderr)
+        return 1
+    conn = db.connect(cfg.db_path)
+    client = make_client(cfg.llm_base_url, cfg.llm_api_key)
+    out_dir = generate_application(conn, args.id, cfg, client)
+    print(f"Fertig: {out_dir / 'index.html'}")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
