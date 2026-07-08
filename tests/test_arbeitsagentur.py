@@ -38,3 +38,22 @@ def test_parse_jobs_empty_payload():
 def test_parse_jobs_skips_entry_without_refnr_and_url():
     payload = {"ergebnisliste": [{"stellenangebotsTitel": "Kaputt", "firma": "X"}]}
     assert arbeitsagentur.parse_jobs(payload) == []
+
+
+def test_parse_jobs_handles_malformed_date():
+    """Malformed date should not crash parsing; entry should still be returned with posted_at=None."""
+    payload = {
+        "ergebnisliste": [
+            {
+                "stellenangebotsTitel": "Test Job",
+                "firma": "Test Company",
+                "referenznummer": "123-456-S",
+                "datumErsteVeroeffentlichung": "kaputt",
+            }
+        ]
+    }
+    items = arbeitsagentur.parse_jobs(payload)
+    assert len(items) == 1
+    assert items[0].title == "Test Job"
+    assert items[0].company == "Test Company"
+    assert items[0].posted_at is None

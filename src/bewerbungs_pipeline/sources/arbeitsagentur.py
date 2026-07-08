@@ -11,6 +11,16 @@ DETAIL_PAGE = "https://www.arbeitsagentur.de/jobsuche/jobdetail/{refnr}"
 TIMEOUT = 30.0
 
 
+def _parse_date(value: str | None) -> date | None:
+    """Parse ISO date string, returning None if missing or malformed."""
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value[:10])
+    except ValueError:
+        return None
+
+
 def parse_jobs(payload: dict) -> list[JobItem]:
     items: list[JobItem] = []
     for entry in payload.get("ergebnisliste", []):
@@ -29,7 +39,7 @@ def parse_jobs(payload: dict) -> list[JobItem]:
                 url=url,
                 source="arbeitsagentur",
                 source_ref=refnr,
-                posted_at=date.fromisoformat(posted[:10]) if posted else None,
+                posted_at=_parse_date(posted),
                 scraped_at=datetime.now(UTC),
             )
         )
