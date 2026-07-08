@@ -22,9 +22,17 @@ personalisieren, in die Vorlage einsetzen.
 - **Scrapling**: Fallback-Fetcher für hart geschützte Seiten
   (Cloudflare Turnstile, TLS-Fingerprinting), nur einbauen wenn Crawl4AI
   an einer wichtigen Quelle scheitert (YAGNI).
+- **MarkItDown** (Microsoft): optionales Add-on, falls Stellenanzeigen nur
+  als PDF vorliegen — konvertiert sie zu Markdown fürs LLM. Erst einbauen,
+  wenn der Fall real auftritt.
 - **Scrapy entfällt.** Es hat keine Anti-Bot-Fähigkeiten (plain HTTP, sofort
   erkennbar) und seine Stärken (Crawl-Infrastruktur, Selektoren-Pipelines)
   braucht dieser Workflow nicht. Der Klon unter `/home/a/Dev/scrapy` kann weg.
+
+**Geprüft und verworfen:** Firecrawl (Bezahl-SaaS, macht dasselbe wie
+Crawl4AI), Crawlee (Node-Stack, kein Mehrwert), curl-impersonate (steckt
+bereits in Scrapling via curl_cffi), AutoScraper (unmaintained seit 2022,
+durch LLM-Extraktion obsolet).
 
 **Rechtlicher Hinweis:** Crawl4AI/Scrapling lösen das technische Blocking,
 nicht die ToS. Indeed/StepStone verbieten Scraping vertraglich — nutzbar,
@@ -124,7 +132,9 @@ Firmenname kommt vor. Bei Fehlschlag genau ein Retry, dann Abbruch mit Log.
 
 ## Nicht-Ziele (YAGNI)
 
-- Kein automatischer Versand von Bewerbungen
+- Kein automatischer Versand von Bewerbungen. Falls später gewünscht
+  (Bewerbungsformulare automatisch ausfüllen), wäre Browser Use der
+  Kandidat — bewusst nicht jetzt.
 - Keine Generierung ohne manuelle Auswahl
 - Kein Web-UI — das CLI reicht
 - Kein Scheduler in Phase 1; Cron später bei Bedarf
