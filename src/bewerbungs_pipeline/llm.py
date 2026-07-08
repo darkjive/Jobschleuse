@@ -5,6 +5,17 @@ from openai import OpenAI
 from .models import JobItem
 
 
+_LEGAL_SUFFIXES = {"gmbh", "ag", "kg", "se", "ug", "ohg", "gbr", "mbh", "co", "co.", "&", "e.v.", "e.k."}
+
+
+def _company_core(company: str) -> str:
+    """Extract core name by stripping trailing legal-form suffixes."""
+    words = company.split()
+    while len(words) > 1 and words[-1].lower().strip(".,") in _LEGAL_SUFFIXES:
+        words.pop()
+    return " ".join(words)
+
+
 class GenerationError(Exception):
     pass
 
@@ -70,8 +81,9 @@ def validate_values(values: dict, slots: dict[str, str], company: str) -> list[s
     if empty:
         problems.append(f"Leere Slots: {empty}")
     joined = " ".join(str(v) for v in values.values()).lower()
-    if company.lower() not in joined:
-        problems.append(f"Firmenname '{company}' kommt in keinem Slot vor")
+    core = _company_core(company).lower()
+    if core not in joined:
+        problems.append(f"Firmenname '{_company_core(company)}' kommt in keinem Slot vor")
     return problems
 
 

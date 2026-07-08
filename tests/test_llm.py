@@ -80,3 +80,15 @@ def test_generate_fails_after_two_attempts():
     with pytest.raises(llm.GenerationError):
         llm.generate_slot_texts(client, "test-model", JOB, SLOTS, PROFILE)
     assert client.calls == 2
+
+
+def test_validate_accepts_company_without_legal_suffix():
+    values = {"firma": "Bewerbung bei AC Motoren", "einstieg": "Text."}
+    slots = {"firma": "alt", "einstieg": "alt"}
+    assert llm.validate_values(values, slots, "AC Motoren GmbH & Co. KG") == []
+
+
+def test_validate_still_fails_when_core_name_missing():
+    values = {"firma": "Eine andere Firma", "einstieg": "Text."}
+    slots = {"firma": "alt", "einstieg": "alt"}
+    assert llm.validate_values(values, slots, "AC Motoren GmbH")
