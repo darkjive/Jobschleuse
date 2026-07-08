@@ -1,6 +1,7 @@
 # Bewerbungs-Pipeline: Stellen finden → Vorlage füllen
 
-**Datum:** 2026-07-08 (Rev. 2 — Audit-Stufe gestrichen, Crawl4AI statt Scrapy)
+**Datum:** 2026-07-08 (Rev. 3 — nach Verifikation: API-Status korrigiert,
+JobSpy für Phase 3, Dedupe-Fix)
 **Status:** Entwurf, wartet auf Review
 
 ## Ziel
@@ -13,8 +14,14 @@ personalisieren, in die Vorlage einsetzen.
 
 ## Werkzeugwahl
 
-- **Arbeitsagentur-API** (Bundesagentur für Arbeit): Quelle Nr. 1. Offizielle,
-  kostenlose REST-API, strukturierte Daten, kein Scraping nötig. Nur `httpx`.
+- **Arbeitsagentur-API** (Bundesagentur für Arbeit): Quelle Nr. 1. Die REST-API
+  hinter der offiziellen Jobbörse — kostenlos, ohne Registrierung, strukturierte
+  Daten, kein Scraping nötig. Nur `httpx`. **Ehrlicherweise:** nicht offiziell
+  für Dritte angeboten; Doku kommt vom Community-Projekt bundesAPI
+  (github.com/bundesAPI/jobsuche-api). Seit Jahren stabil, aber ohne Garantie.
+  Basis: `https://rest.arbeitsagentur.de/jobboerse/jobsuche-service`,
+  Header `X-API-KEY: jobboerse-jobsuche`, Suche via `/pc/v6/jobs` (v4 als
+  Fallback prüfen), Details via `/pc/v4/jobdetails/{base64(refnr)}`.
 - **Crawl4AI** (Python, Playwright-basiert): für Portale und
   Firmen-Karriereseiten. Liefert Seiten als LLM-fertiges Markdown mit
   Undetected-Browser-Support. Vorteil: **keine CSS-Selektoren pro Quelle** —
@@ -57,7 +64,8 @@ Ein Modul pro Quelle, alle schreiben dasselbe `JobItem` in SQLite:
 |---|---|---|
 | Arbeitsagentur | REST-API via httpx, JSON | 1 |
 | Firmen-Karriereseiten | Crawl4AI → Markdown → LLM extrahiert Felder | 2 |
-| Indeed / StepStone | wie Karriereseiten, ggf. Scrapling-Fallback | 3 |
+| Indeed / LinkedIn / Glassdoor | `python-jobspy` (gepflegte Lib, Indeed via interne API, `country_indeed="germany"`) | 3 |
+| StepStone | Crawl4AI wie Karriereseiten, ggf. Scrapling-Fallback (JobSpy kann StepStone nicht) | 3 |
 
 **JobItem:**
 
@@ -77,7 +85,10 @@ scraped_at: datetime
 
 **Speicherung:** eine SQLite-Datei `jobs.db`, Tabelle `jobs` mit
 Status-Spalte (`new` / `selected` / `generated` / `rejected`).
-Dedupe über Hash aus `(company, title)` beim Insert.
+Dedupe beim Insert: primär über `url` bzw. Referenznummer der Quelle
+(UNIQUE), sekundär über Hash aus `(company, title, location)` gegen
+Duplikate derselben Stelle aus verschiedenen Quellen. Nicht nur
+`(company, title)` — sonst kollabieren gleiche Rollen an zwei Standorten.
 
 ### Stufe 2: Shortlist (CLI)
 
@@ -144,9 +155,10 @@ kein Thema dieser Pipeline.
 
 - Python 3.13 via `uv` (Versionsverwaltung wie nvm: `uv venv --python 3.13`)
 - Projekt: `/home/a/Dev/bewerbungs-pipeline`
-- Dependencies: `httpx`, `crawl4ai`, `openai` (Client für jeden
-  OpenAI-kompatiblen Endpoint), `beautifulsoup4` + `lxml` (Slot-Ersetzung
-  in der Vorlage); `scrapling` nur bei Bedarf
+- Dependencies: `httpx`, `pydantic` (JobItem-/Slot-Validierung), `openai`
+  (Client für jeden OpenAI-kompatiblen Endpoint), `beautifulsoup4` + `lxml`
+  (Slot-Ersetzung in der Vorlage); ab Phase 2 `crawl4ai`; ab Phase 3
+  `python-jobspy`; `scrapling` nur bei Bedarf
 - Secrets in `.env`, nie im Code
 - Tests: Unit-Tests für Slot-Ersetzung und JobItem-Validierung mit
   Fixtures (kein Netz in Tests)
@@ -156,7 +168,16 @@ kein Thema dieser Pipeline.
 1. **Arbeitsagentur + SQLite + CLI + Slot-Füllung** — kompletter Durchstich
    von Suche bis fertiger Bewerbung mit der legalen, stabilen Quelle
 2. **Karriereseiten via Crawl4AI** — Markdown → LLM-Extraktion
-3. **Indeed/StepStone** — optional, ToS-Risiko, ggf. Scrapling
+3. **Portale** — Indeed/LinkedIn/Glassdoor via `python-jobspy` (gepflegte
+   Lib statt Eigenbau), StepStone via Crawl4AI. Optional, ToS-Risiko.
+
+**Abgrenzung zu existierenden Lösungen (geprüft 2026-07-08):** AIHawk, das
+bekannteste Auto-Apply-Tool, ist seit Mai 2026 archiviert (Team auf
+proprietäres Produkt geschwenkt) und verfolgt ohnehin das Gegenteil dieses
+Ansatzes (Massenbewerbung statt kuratierter Shortlist mit eigener Vorlage).
+JobSpy löst nur das Scraping und wird als Phase-3-Dependency übernommen.
+Eine fertige Lösung für deutsche Quellen + eigene Design-Vorlage +
+CBKS-Anbindung existiert nicht.
 
 ## Nicht-Ziele (YAGNI)
 
