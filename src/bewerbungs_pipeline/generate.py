@@ -54,14 +54,20 @@ def generate_application(conn, job_id: int, cfg: Config, client) -> Path:
 
     row = _ensure_description(conn, row)
     template = cfg.template_path.read_text()
-    slots = extract_slots(template)
+    try:
+        slots = extract_slots(template)
+    except ValueError as exc:
+        raise SystemExit(f"Vorlage fehlerhaft: {exc}") from exc
     if not slots:
         raise SystemExit("Vorlage enthält keine data-slot-Markierungen.")
     profile = yaml.safe_load(cfg.profile_path.read_text())
     job = dbmod.row_to_item(row)
 
     values = generate_slot_texts(client, cfg.llm_model, job, slots, profile)
-    html = fill_slots(template, values)
+    try:
+        html = fill_slots(template, values)
+    except ValueError as exc:
+        raise SystemExit(f"Vorlage fehlerhaft: {exc}") from exc
 
     slug = slugify(row["company"])
     out_dir = cfg.out_dir / slug

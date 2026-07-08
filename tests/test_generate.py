@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -102,6 +103,17 @@ def test_generate_requires_selected_status(tmp_path):
     job_id = seed(cfg, status="new")
     conn = db.connect(cfg.db_path)
     with pytest.raises(SystemExit):
+        generate.generate_application(conn, job_id, cfg, FakeClient(GOOD))
+
+
+def test_generate_reports_malformed_template_as_system_exit(tmp_path):
+    cfg = make_cfg(tmp_path)
+    broken_template = tmp_path / "broken.html"
+    broken_template.write_text('<p data-slot="x">kaputt')
+    cfg = replace(cfg, template_path=broken_template)
+    job_id = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    with pytest.raises(SystemExit, match="Vorlage fehlerhaft"):
         generate.generate_application(conn, job_id, cfg, FakeClient(GOOD))
 
 
