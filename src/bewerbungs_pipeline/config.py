@@ -24,7 +24,7 @@ def load_config() -> Config:
     return Config(
         db_path=Path(os.getenv("DB_PATH", "data/jobs.db")),
         out_dir=Path(os.getenv("OUT_DIR", "out")),
-        template_path=Path(os.getenv("TEMPLATE_PATH", "templates/vorlage.html")),
+        template_path=Path(os.getenv("TEMPLATE_PATH", "templates/beispiel.html")),
         profile_path=Path(os.getenv("PROFILE_PATH", "profile.yaml")),
         cbks_inbox=Path(inbox) if inbox else None,
         llm_base_url=os.getenv("LLM_BASE_URL", ""),

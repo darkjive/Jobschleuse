@@ -4,10 +4,11 @@ from bewerbungs_pipeline.config import load_config
 
 
 def test_defaults(monkeypatch):
-    for var in ("DB_PATH", "OUT_DIR", "CBKS_INBOX"):
+    for var in ("DB_PATH", "OUT_DIR", "TEMPLATE_PATH", "CBKS_INBOX"):
         monkeypatch.delenv(var, raising=False)
     cfg = load_config()
     assert cfg.db_path == Path("data/jobs.db")
+    assert cfg.template_path == Path("templates/beispiel.html")
     assert cfg.cbks_inbox is None
 
 
