@@ -111,6 +111,28 @@ Fakten über die Firma, die nirgends stehen, werden nicht erfunden.
 **Validierung:** Ausgabe-JSON enthält alle Slots, kein Slot leer,
 Firmenname kommt vor. Bei Fehlschlag genau ein Retry, dann Abbruch mit Log.
 
+## CBKS-Integration
+
+CBKS (`/home/a/Dev/cbks`, SQLite + FAISS + Inbox-Ingestion) ist die
+persönliche Wissensbasis. Grundsatz: **Integration statt Verschmelzung** —
+CBKS hält Wissen, die Pipeline hält ihren Betriebszustand.
+
+1. **Profil lesen:** Bewerberdaten (Name, Adresse, Kontakt) kommen aus einer
+   Profil-Schnittstelle. Phase 1: `profile.yaml`. Später, wenn die CBKS-API
+   (dort Phase 3) steht: CBKS-Adapter mit denselben Feldern. Persönliche
+   Daten werden nie in Pipeline-Code oder Vorlagen hardcodiert — das hält
+   den Generator auch für andere Nutzer verwendbar, ohne dass jetzt
+   Multi-User-Features gebaut werden.
+2. **Archiv schreiben:** Nach `generate` werden Bewerbung + Stellenanzeige
+   in die CBKS-Inbox gelegt (Dateiablage, keine API nötig). CBKS ingestiert
+   sie wie jedes andere Dokument; die Bewerbungshistorie wird Teil des
+   Wissensgraphen.
+3. **`jobs.db` bleibt bei der Pipeline:** Workflow-Status ist Betriebszustand,
+   kein Wissen. Keine Kopplung an CBKS-Schema oder -Reifegrad.
+
+Arbeitsverträge, Gehaltsabrechnungen etc. gehören direkt in CBKS und sind
+kein Thema dieser Pipeline.
+
 ## Fehlerbehandlung
 
 - Quellen unabhängig: eine kaputte Quelle stoppt die anderen nicht.
@@ -143,4 +165,7 @@ Firmenname kommt vor. Bei Fehlschlag genau ein Retry, dann Abbruch mit Log.
   Kandidat — bewusst nicht jetzt.
 - Keine Generierung ohne manuelle Auswahl
 - Kein Web-UI — das CLI reicht
+- Keine Multi-User-/SaaS-Features. Die Profil-Schnittstelle (keine
+  persönlichen Daten im Code) ist die einzige Vorbereitung auf eine
+  spätere Nutzung durch andere — mehr erst bei echtem Bedarf.
 - Kein Scheduler in Phase 1; Cron später bei Bedarf
