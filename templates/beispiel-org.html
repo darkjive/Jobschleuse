@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Claude Design</title>
+    <link rel="icon" type="image/png" href="/design/favicon.png" />
+    <script>
+      // FOUC guard: set data-theme before any stylesheet loads so the first
+      // paint uses the right palette. Mirrors hooks/useTheme.ts. The stored
+      // value is JSON (usehooks-ts useLocalStorage). When no preference is
+      // stored we paint light — the dark-mode flag isn't known until React
+      // mounts, and a flag-off user with OS dark mode shouldn't see a dark
+      // flash. useTheme's effect corrects this on mount for flag-on users.
+      try {
+        var raw = localStorage.getItem('om:theme');
+        // Mirror useTheme's default: usehooks-ts doesn't persist 'system'
+        // until the toggle is used, so absent = 'system' (gated on flagOn).
+        var pref = raw ? JSON.parse(raw) : 'system';
+        // The flag isn't known at first paint. The hook persists its last
+        // known state here so a user whose flag was turned off after picking
+        // Dark doesn't see a dark→light flash on every load.
+        var flagOn = localStorage.getItem('om:dark-mode-enabled') === '1';
+        var dark =
+          flagOn &&
+          (pref === 'dark' ||
+            (pref === 'system' &&
+              matchMedia('(prefers-color-scheme: dark)').matches));
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        // Pre-CSS canvas color: until tokens.css loads, the UA paints the
+        // default white canvas, which flashes on a dark hard-reload. Inline
+        // values mirror tokens.css --om-bg-app; useTheme clears this once
+        // the app mounts so the stylesheet owns the background again.
+        document.documentElement.style.background = dark
+          ? '#1c1b19'
+          : '#faf9f5';
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+        document.documentElement.style.background = '#faf9f5';
+      }
+    </script>
+    <script type="module" crossorigin src="https://claude.ai/design/p/design/assets/v1/index-d6mZHs__.js"></script>
+    <link rel="modulepreload" crossorigin href="https://claude.ai/design/p/design/assets/v1/rolldown-runtime-CMxvf4Kt.js">
+    <link rel="modulepreload" crossorigin href="https://claude.ai/design/p/design/assets/v1/preload-helper-7XptfjGJ.js">
+    <link rel="modulepreload" crossorigin href="https://claude.ai/design/p/design/assets/v1/react-BthIFXYf.js">
+    <link rel="modulepreload" crossorigin href="https://claude.ai/design/p/design/assets/v1/client-lite-BaZ7Y_UZ.js">
+    <link rel="modulepreload" crossorigin href="https://claude.ai/design/p/design/assets/v1/connect-lite-vzd2EiZc.js">
+    <link rel="modulepreload" crossorigin href="https://claude.ai/design/p/design/assets/v1/cn-BvRk9kiK.js">
+    <link rel="modulepreload" crossorigin href="https://claude.ai/design/p/design/assets/v1/cn-D2uvEwJg.js">
+    <link rel="modulepreload" crossorigin href="https://claude.ai/design/p/design/assets/v1/jsx-runtime-DDrWIXeu.js">
+    <link rel="stylesheet" crossorigin href="https://claude.ai/design/p/design/assets/v1/index-Cr_hOJ-e.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

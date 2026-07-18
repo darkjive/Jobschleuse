@@ -1,4 +1,5 @@
 import json
+from datetime import date
 
 from openai import OpenAI
 
@@ -26,6 +27,8 @@ PROMPT_TEMPLATE = """Du personalisierst eine deutsche Bewerbungsvorlage für ein
 Titel: {title}
 Firma: {company}
 Ort: {location}
+Ansprechpartner: {contact_name}
+Heutiges Datum: {today}
 
 {description}
 
@@ -41,7 +44,9 @@ zugeschnitten auf diese Stelle und diese Firma.
 
 Regeln:
 - Formuliere nur aus Stellenanzeige, Bewerberprofil und den Beispieltexten.
-- Erfinde keine Fakten über die Firma, die nirgends stehen.
+- Erfinde keine Fakten über die Firma, die nirgends stehen (z.B. keine Straße/PLZ, wenn nicht bekannt).
+- Ist kein Ansprechpartner bekannt, verwende die Anrede "Sehr geehrte Damen und Herren".
+- Verwende für Datums-Slots exakt das oben genannte heutige Datum.
 - Der Firmenname "{company}" muss in mindestens einem Slot-Text vorkommen.
 - Antworte NUR mit einem JSON-Objekt: {{"slotname": "neuer Text", ...}}
   mit exakt denselben Slot-Namen wie oben, ohne weitere Erklärungen.
@@ -57,6 +62,8 @@ def build_prompt(job: JobItem, slots: dict[str, str], profile: dict) -> str:
         title=job.title,
         company=job.company,
         location=job.location,
+        contact_name=job.contact_name or "nicht bekannt",
+        today=date.today().strftime("%d.%m.%Y"),
         description=job.description_md or "(keine Beschreibung vorhanden)",
         profile=json.dumps(profile, ensure_ascii=False, indent=2),
         slots=json.dumps(slots, ensure_ascii=False, indent=2),

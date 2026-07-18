@@ -78,10 +78,21 @@ def generate_application(conn, job_id: int, cfg: Config, client) -> Path:
         f"Ort: {row['location']}\nQuelle: {row['url']}\n\n{row['description_md']}\n"
     )
 
+    template_css = cfg.template_path.parent / "styles.css"
+    template_assets = cfg.template_path.parent / "assets"
+    if template_css.exists():
+        shutil.copy(template_css, out_dir / "styles.css")
+    if template_assets.is_dir():
+        shutil.copytree(template_assets, out_dir / "assets", dirs_exist_ok=True)
+
     if cfg.cbks_inbox is not None:
         if cfg.cbks_inbox.is_dir():
             shutil.copy(out_dir / "index.html", cfg.cbks_inbox / f"bewerbung-{slug}.html")
             shutil.copy(out_dir / "stelle.md", cfg.cbks_inbox / f"stelle-{slug}.md")
+            if template_css.exists():
+                shutil.copy(template_css, cfg.cbks_inbox / "styles.css")
+            if template_assets.is_dir():
+                shutil.copytree(template_assets, cfg.cbks_inbox / "assets", dirs_exist_ok=True)
         else:
             print(
                 f"Warnung: CBKS-Inbox {cfg.cbks_inbox} existiert nicht — übersprungen.",

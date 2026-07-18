@@ -5,3 +5,10 @@ __pycache__/
 data/
 out/
 profile.yaml
+
+# Lokale Agent-/Tool-Artefakte
+.playwright-mcp/
+.agents/
+.claude/
+skills-lock.json
+/page*.png
