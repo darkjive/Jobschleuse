@@ -147,3 +147,34 @@ def test_get_by_job_returns_none_without_application(tmp_path):
 def test_slugify():
     assert applications.slugify("AC Motoren GmbH & Co. KG") == "ac-motoren-gmbh-co-kg"
     assert applications.slugify("Müllerößä") != ""
+
+
+def test_export_writes_html_and_stelle(tmp_path):
+    cfg = make_cfg(tmp_path)
+    job_id = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
+    out_dir = applications.export(conn, app_id, cfg)
+    assert "Beispiel AG" in (out_dir / "index.html").read_text()
+    assert "Servicetechniker" in (out_dir / "stelle.md").read_text()
+
+
+def test_export_copies_to_cbks_inbox(tmp_path):
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    cfg = make_cfg(tmp_path, cbks_inbox=inbox)
+    job_id = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
+    applications.export(conn, app_id, cfg)
+    names = {p.name for p in inbox.iterdir()}
+    assert names == {"bewerbung-beispiel-ag.html", "stelle-beispiel-ag.md"}
+
+
+def test_export_missing_inbox_warns_but_succeeds(tmp_path, capsys):
+    cfg = make_cfg(tmp_path, cbks_inbox=tmp_path / "gibtsnicht")
+    job_id = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
+    applications.export(conn, app_id, cfg)
+    assert "CBKS-Inbox" in capsys.readouterr().err

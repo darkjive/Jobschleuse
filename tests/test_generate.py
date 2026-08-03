@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from bewerbungs_pipeline import db, generate
+from bewerbungs_pipeline import applications, db, generate
 from bewerbungs_pipeline.config import Config
 from bewerbungs_pipeline.models import JobItem
 
@@ -75,7 +75,7 @@ def test_generate_writes_output_and_sets_status(tmp_path):
     assert "Dieser Text ist statisch und bleibt unverändert." in html
     stelle = (out_dir / "stelle.md").read_text()
     assert "Servicetechniker" in stelle
-    assert db.get_job(conn, job_id)["status"] == "selected"
+    assert applications.get_by_job(conn, job_id) is not None
 
 
 def test_generate_copies_to_cbks_inbox(tmp_path):
@@ -95,7 +95,7 @@ def test_generate_missing_inbox_warns_but_succeeds(tmp_path, capsys):
     conn = db.connect(cfg.db_path)
     generate.generate_application(conn, job_id, cfg, FakeClient(GOOD))
     assert "CBKS-Inbox" in capsys.readouterr().err
-    assert db.get_job(conn, job_id)["status"] == "selected"
+    assert applications.get_by_job(conn, job_id) is not None
 
 
 def test_generate_requires_selected_status(tmp_path):

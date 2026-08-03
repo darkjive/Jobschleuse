@@ -1,7 +1,9 @@
 import re
+import shutil
 import sqlite3
 import sys
 from datetime import UTC, datetime
+from pathlib import Path
 
 import yaml
 
@@ -171,3 +173,44 @@ def render(conn, app_id: int, cfg: Config) -> str:
         return fill_slots(template, values)
     except ValueError as exc:
         raise ApplicationError(f"Vorlage fehlerhaft: {exc}") from exc
+
+
+def export(conn, app_id: int, cfg: Config) -> Path:
+    application = get(conn, app_id)
+    if application is None:
+        raise ApplicationError(f"Bewerbung {app_id} nicht gefunden.")
+    row = dbmod.get_job(conn, application["job_id"])
+    html = render(conn, app_id, cfg)
+
+    slug = slugify(row["company"])
+    out_dir = cfg.out_dir / slug
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "index.html").write_text(html)
+    (out_dir / "stelle.md").write_text(
+        f"# {row['title']} — {row['company']}\n\n"
+        f"Ort: {row['location']}\nQuelle: {row['url']}\n\n{row['description_md']}\n"
+    )
+
+    template_css = cfg.template_path.parent / "styles.css"
+    template_assets = cfg.template_path.parent / "assets"
+    if template_css.exists():
+        shutil.copy(template_css, out_dir / "styles.css")
+    if template_assets.is_dir():
+        shutil.copytree(template_assets, out_dir / "assets", dirs_exist_ok=True)
+
+    if cfg.cbks_inbox is not None:
+        if cfg.cbks_inbox.is_dir():
+            shutil.copy(out_dir / "index.html", cfg.cbks_inbox / f"bewerbung-{slug}.html")
+            shutil.copy(out_dir / "stelle.md", cfg.cbks_inbox / f"stelle-{slug}.md")
+            if template_css.exists():
+                shutil.copy(template_css, cfg.cbks_inbox / "styles.css")
+            if template_assets.is_dir():
+                shutil.copytree(
+                    template_assets, cfg.cbks_inbox / "assets", dirs_exist_ok=True
+                )
+        else:
+            print(
+                f"Warnung: CBKS-Inbox {cfg.cbks_inbox} existiert nicht — übersprungen.",
+                file=sys.stderr,
+            )
+    return out_dir
