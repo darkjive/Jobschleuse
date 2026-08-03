@@ -21,13 +21,19 @@ PROFILE = {"name": "Alain Ritter", "email": "cosmwave@gmail.com"}
 
 
 class FakeClient:
-    """Gibt vorbereitete Antworten in Reihenfolge zurück und zählt Aufrufe."""
+    """Gibt vorbereitete Antworten zurück und zählt Aufrufe.
+
+    Bei einem dict wird dieselbe Antwort bei jedem Aufruf erneut geliefert
+    (unbegrenzt). Bei einer Liste wird eine Antwort pro Aufruf der Reihe
+    nach geliefert.
+    """
 
     def __init__(self, responses):
         self.calls = 0
-        # Handle both list of strings and dict
+        self._dict_response = None
+        self._responses = None
         if isinstance(responses, dict):
-            self._responses = [json.dumps(responses, ensure_ascii=False)]
+            self._dict_response = json.dumps(responses, ensure_ascii=False)
         else:
             self._responses = responses
         self.chat = SimpleNamespace(
@@ -35,7 +41,10 @@ class FakeClient:
         )
 
     def _create(self, **kwargs):
-        text = self._responses[self.calls]
+        if self._dict_response is not None:
+            text = self._dict_response
+        else:
+            text = self._responses[self.calls]
         self.calls += 1
         message = SimpleNamespace(content=text)
         return SimpleNamespace(choices=[SimpleNamespace(message=message)])
@@ -143,9 +152,9 @@ def test_generate_single_slot_rejects_empty_answer():
         description_md="Wir suchen Verstärkung.",
         scraped_at=datetime.now(UTC),
     )
-    # Two attempts, both return empty answer
-    client = FakeClient([json.dumps({"motivation": "   "}), json.dumps({"motivation": "   "})])
+    client = FakeClient({"motivation": "   "})
     with pytest.raises(llm.GenerationError):
         llm.generate_single_slot(
             client, "test-model", job, "motivation", "alt", {"name": "Alain"}, {}
         )
+    assert client.calls == 2

@@ -145,6 +145,18 @@ def get_by_job(conn, job_id: int) -> dict | None:
     return _row_to_application(conn, row) if row else None
 
 
+def _update_slot(conn, app_id: int, slot: str, value: str, source: str) -> None:
+    now = _now()
+    conn.execute(
+        """UPDATE application_slots
+           SET value = ?, source = ?, updated_at = ?
+           WHERE application_id = ? AND slot = ?""",
+        (value, source, now, app_id, slot),
+    )
+    conn.execute("UPDATE applications SET updated_at = ? WHERE id = ?", (now, app_id))
+    conn.commit()
+
+
 def set_slot(conn, app_id: int, slot: str, value: str) -> None:
     existing = conn.execute(
         "SELECT 1 FROM application_slots WHERE application_id = ? AND slot = ?",
@@ -152,15 +164,7 @@ def set_slot(conn, app_id: int, slot: str, value: str) -> None:
     ).fetchone()
     if existing is None:
         raise ApplicationError(f"Unbekannter Slot: {slot}")
-    now = _now()
-    conn.execute(
-        """UPDATE application_slots
-           SET value = ?, source = 'manuell', updated_at = ?
-           WHERE application_id = ? AND slot = ?""",
-        (value, now, app_id, slot),
-    )
-    conn.execute("UPDATE applications SET updated_at = ? WHERE id = ?", (now, app_id))
-    conn.commit()
+    _update_slot(conn, app_id, slot, value, "manuell")
 
 
 def render(conn, app_id: int, cfg: Config) -> str:
@@ -241,13 +245,5 @@ def regenerate_slot(conn, app_id: int, slot: str, cfg: Config, client) -> str:
     except GenerationError as exc:
         raise ApplicationError(f"Texterzeugung fehlgeschlagen: {exc}") from exc
 
-    now = _now()
-    conn.execute(
-        """UPDATE application_slots
-           SET value = ?, source = 'llm', updated_at = ?
-           WHERE application_id = ? AND slot = ?""",
-        (value, now, app_id, slot),
-    )
-    conn.execute("UPDATE applications SET updated_at = ? WHERE id = ?", (now, app_id))
-    conn.commit()
+    _update_slot(conn, app_id, slot, value, "llm")
     return value
