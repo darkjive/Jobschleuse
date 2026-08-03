@@ -38,3 +38,26 @@ def test_beschreibung_is_kept():
     task_id = tasks.start("Stellen werden gesucht", lambda: None)
     _warte_auf_ende(task_id)
     assert tasks.get(task_id).beschreibung == "Stellen werden gesucht"
+
+
+def test_get_returns_a_copy_not_shared_reference():
+    """Verifiziert, dass get() eine Kopie zurückgibt, keine lebende Referenz.
+
+    Änderungen am zurückgegebenen Objekt dürfen den intern gehaltenen
+    Zustand nicht verändern (verhindert Race Conditions und versehentliche
+    Mutationen durch Aufrufer).
+    """
+    task_id = tasks.start("Test", lambda: 42)
+    _warte_auf_ende(task_id)
+
+    # get() zurückgegebene Kopie verändern
+    kopie = tasks.get(task_id)
+    kopie.status = "manipuliert"
+    kopie.meldung = "ich bin böse"
+    kopie.ergebnis = "falsch"
+
+    # Interner Zustand muss unverändert sein
+    original = tasks.get(task_id)
+    assert original.status == "fertig", "Status wurde durch Änderung der Kopie beeinflusst!"
+    assert original.meldung == "", "Meldung wurde durch Änderung der Kopie beeinflusst!"
+    assert original.ergebnis == 42, "Ergebnis wurde durch Änderung der Kopie beeinflusst!"

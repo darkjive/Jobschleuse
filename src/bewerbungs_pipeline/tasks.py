@@ -8,7 +8,7 @@ Infrastruktur ohne Gegenwert.
 import itertools
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="bewerbung")
 _lock = threading.Lock()
@@ -49,7 +49,11 @@ def start(beschreibung: str, fn, *args, **kwargs) -> str:
 
 def get(task_id: str) -> Task | None:
     with _lock:
-        return _tasks.get(task_id)
+        task = _tasks.get(task_id)
+        # Rückgabe einer Kopie verhindert Race Conditions:
+        # Der Aufrufer sieht einen konsistenten Schnappschuss,
+        # während der Hintergrund-Thread das Original weiter verändern kann.
+        return replace(task) if task is not None else None
 
 
 def shutdown() -> None:
