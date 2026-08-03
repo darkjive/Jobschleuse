@@ -23,9 +23,13 @@ PROFILE = {"name": "Alain Ritter", "email": "cosmwave@gmail.com"}
 class FakeClient:
     """Gibt vorbereitete Antworten in Reihenfolge zurück und zählt Aufrufe."""
 
-    def __init__(self, responses: list[str]):
+    def __init__(self, responses):
         self.calls = 0
-        self._responses = responses
+        # Handle both list of strings and dict
+        if isinstance(responses, dict):
+            self._responses = [json.dumps(responses, ensure_ascii=False)]
+        else:
+            self._responses = responses
         self.chat = SimpleNamespace(
             completions=SimpleNamespace(create=self._create)
         )
@@ -92,3 +96,56 @@ def test_validate_still_fails_when_core_name_missing():
     values = {"firma": "Eine andere Firma", "einstieg": "Text."}
     slots = {"firma": "alt", "einstieg": "alt"}
     assert llm.validate_values(values, slots, "AC Motoren GmbH")
+
+
+def test_build_single_slot_prompt_names_slot_and_others():
+    job = JobItem(
+        title="Servicetechniker (m/w/d)",
+        company="Beispiel AG",
+        location="Frankfurt am Main",
+        url="https://example.org/job/1",
+        source="arbeitsagentur",
+        description_md="Wir suchen Verstärkung.",
+        scraped_at=datetime.now(UTC),
+    )
+    prompt = llm.build_single_slot_prompt(
+        job, "motivation", "Beispieltext", {"name": "Alain"}, {"firma": "Beispiel AG"}
+    )
+    assert "motivation" in prompt
+    assert "Beispieltext" in prompt
+    assert "Beispiel AG" in prompt
+
+
+def test_generate_single_slot_returns_text():
+    job = JobItem(
+        title="Servicetechniker (m/w/d)",
+        company="Beispiel AG",
+        location="Frankfurt am Main",
+        url="https://example.org/job/1",
+        source="arbeitsagentur",
+        description_md="Wir suchen Verstärkung.",
+        scraped_at=datetime.now(UTC),
+    )
+    client = FakeClient({"motivation": "Frisch formulierter Text."})
+    text = llm.generate_single_slot(
+        client, "test-model", job, "motivation", "alt", {"name": "Alain"}, {}
+    )
+    assert text == "Frisch formulierter Text."
+
+
+def test_generate_single_slot_rejects_empty_answer():
+    job = JobItem(
+        title="Servicetechniker (m/w/d)",
+        company="Beispiel AG",
+        location="Frankfurt am Main",
+        url="https://example.org/job/1",
+        source="arbeitsagentur",
+        description_md="Wir suchen Verstärkung.",
+        scraped_at=datetime.now(UTC),
+    )
+    # Two attempts, both return empty answer
+    client = FakeClient([json.dumps({"motivation": "   "}), json.dumps({"motivation": "   "})])
+    with pytest.raises(llm.GenerationError):
+        llm.generate_single_slot(
+            client, "test-model", job, "motivation", "alt", {"name": "Alain"}, {}
+        )

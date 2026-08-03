@@ -9,7 +9,7 @@ import yaml
 
 from . import db as dbmod
 from .config import Config
-from .llm import GenerationError, generate_slot_texts
+from .llm import GenerationError, generate_single_slot, generate_slot_texts
 from .slots import extract_slots, fill_slots
 from .sources.arbeitsagentur import fetch_details
 
@@ -214,3 +214,40 @@ def export(conn, app_id: int, cfg: Config) -> Path:
                 file=sys.stderr,
             )
     return out_dir
+
+
+def regenerate_slot(conn, app_id: int, slot: str, cfg: Config, client) -> str:
+    application = get(conn, app_id)
+    if application is None:
+        raise ApplicationError(f"Bewerbung {app_id} nicht gefunden.")
+    if slot not in application["slots"]:
+        raise ApplicationError(f"Unbekannter Slot: {slot}")
+
+    row = dbmod.get_job(conn, application["job_id"])
+    job = dbmod.row_to_item(row)
+    profile = _load_profile(cfg)
+    _, vorlagen_slots = _template_slots(cfg)
+    beispiel = vorlagen_slots.get(slot, application["slots"][slot]["value"])
+    andere = {
+        name: data["value"]
+        for name, data in application["slots"].items()
+        if name != slot
+    }
+
+    try:
+        value = generate_single_slot(
+            client, cfg.llm_model, job, slot, beispiel, profile, andere
+        )
+    except GenerationError as exc:
+        raise ApplicationError(f"Texterzeugung fehlgeschlagen: {exc}") from exc
+
+    now = _now()
+    conn.execute(
+        """UPDATE application_slots
+           SET value = ?, source = 'llm', updated_at = ?
+           WHERE application_id = ? AND slot = ?""",
+        (value, now, app_id, slot),
+    )
+    conn.execute("UPDATE applications SET updated_at = ? WHERE id = ?", (now, app_id))
+    conn.commit()
+    return value

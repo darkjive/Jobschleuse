@@ -178,3 +178,27 @@ def test_export_missing_inbox_warns_but_succeeds(tmp_path, capsys):
     app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
     applications.export(conn, app_id, cfg)
     assert "CBKS-Inbox" in capsys.readouterr().err
+
+
+def test_regenerate_slot_replaces_value_and_marks_llm(tmp_path):
+    cfg = make_cfg(tmp_path)
+    job_id = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
+    applications.set_slot(conn, app_id, "motivation", "Von Hand.")
+    neu = applications.regenerate_slot(
+        conn, app_id, "motivation", cfg, FakeClient({"motivation": "Neu vom Modell."})
+    )
+    slot = applications.get(conn, app_id)["slots"]["motivation"]
+    assert neu == "Neu vom Modell."
+    assert slot["value"] == "Neu vom Modell."
+    assert slot["source"] == "llm"
+
+
+def test_regenerate_slot_rejects_unknown_slot(tmp_path):
+    cfg = make_cfg(tmp_path)
+    job_id = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
+    with pytest.raises(applications.ApplicationError, match="Unbekannter Slot"):
+        applications.regenerate_slot(conn, app_id, "gibtsnicht", cfg, FakeClient({}))

@@ -118,3 +118,92 @@ def generate_slot_texts(
             f"\n\nDein letzter Versuch hatte diese Fehler: {last_problems}. Korrigiere sie."
         )
     raise GenerationError(f"LLM-Ausgabe nach 2 Versuchen ungültig: {last_problems}")
+
+
+SINGLE_SLOT_PROMPT = """Du überarbeitest EINEN Textblock einer deutschen Bewerbung.
+
+## Stellenanzeige
+Titel: {title}
+Firma: {company}
+Ort: {location}
+Ansprechpartner: {contact_name}
+Heutiges Datum: {today}
+
+{description}
+
+## Bewerberprofil
+{profile}
+
+## Die übrigen Textblöcke der Bewerbung (nur als Kontext, nicht ändern)
+{andere}
+
+## Zu überarbeitender Block
+Name: {slot}
+Bisheriger Text: {beispiel}
+
+## Auftrag
+Schreibe diesen einen Block neu — im selben Stil und in ungefähr derselben Länge,
+zugeschnitten auf diese Stelle und diese Firma.
+
+Regeln:
+- Formuliere nur aus Stellenanzeige, Bewerberprofil und den vorhandenen Texten.
+- Erfinde keine Fakten über die Firma, die nirgends stehen.
+- Wiederhole nicht wörtlich, was in den übrigen Blöcken schon steht.
+- Antworte NUR mit einem JSON-Objekt: {{"{slot}": "neuer Text"}}
+  ohne weitere Erklärungen.
+"""
+
+
+def build_single_slot_prompt(
+    job: JobItem, slot: str, beispiel: str, profile: dict, andere: dict[str, str]
+) -> str:
+    return SINGLE_SLOT_PROMPT.format(
+        title=job.title,
+        company=job.company,
+        location=job.location,
+        contact_name=job.contact_name or "nicht bekannt",
+        today=date.today().strftime("%d.%m.%Y"),
+        description=job.description_md or "(keine Beschreibung vorhanden)",
+        profile=json.dumps(profile, ensure_ascii=False, indent=2),
+        andere=json.dumps(andere, ensure_ascii=False, indent=2),
+        slot=slot,
+        beispiel=beispiel,
+    )
+
+
+def generate_single_slot(
+    client,
+    model: str,
+    job: JobItem,
+    slot: str,
+    beispiel: str,
+    profile: dict,
+    andere: dict[str, str],
+) -> str:
+    """Erzeugt genau einen Slot-Text.
+
+    Bewusst schwächere Validierung als validate_values: ein einzelner Block
+    muss den Firmennamen nicht enthalten (z. B. ein Datums- oder Anrede-Block).
+    """
+    prompt = build_single_slot_prompt(job, slot, beispiel, profile, andere)
+    problem = ""
+    for _attempt in range(2):
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+        )
+        text = response.choices[0].message.content or ""
+        try:
+            values = parse_response(text)
+        except (json.JSONDecodeError, IndexError):
+            problem = "Antwort war kein gültiges JSON"
+        else:
+            value = values.get(slot)
+            if isinstance(value, str) and value.strip():
+                return value
+            problem = f"Slot '{slot}' fehlte oder war leer"
+        prompt = build_single_slot_prompt(job, slot, beispiel, profile, andere) + (
+            f"\n\nDein letzter Versuch hatte diesen Fehler: {problem}. Korrigiere ihn."
+        )
+    raise GenerationError(f"LLM-Ausgabe nach 2 Versuchen ungültig: {problem}")
