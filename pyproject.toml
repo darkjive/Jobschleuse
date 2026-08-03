@@ -9,13 +9,21 @@ dependencies = [
     "openai",
     "pyyaml",
     "python-dotenv",
+    "fastapi>=0.141.1",
+    "uvicorn>=0.52.1",
+    "jinja2>=3.1.6",
+    "python-multipart>=0.0.32",
 ]
 
 [project.scripts]
 jobs = "bewerbungs_pipeline.cli:main"
 
 [dependency-groups]
-dev = ["pytest"]
+dev = [
+    "httpx>=0.28.1",
+    "httpx2>=2.9.1",
+    "pytest",
+]
 
 [build-system]
 requires = ["hatchling"]

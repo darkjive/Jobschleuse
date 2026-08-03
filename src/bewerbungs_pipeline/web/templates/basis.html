@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titel %}Bewerbungen{% endblock %}</title>
+  <link rel="stylesheet" href="/static/tokens.css">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+  <header class="kopf">
+    <h1>Bewerbungen</h1>
+    {% block kopfaktionen %}{% endblock %}
+  </header>
+  <main>
+    {% block inhalt %}{% endblock %}
+  </main>
+</body>
+</html>

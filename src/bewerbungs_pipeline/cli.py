@@ -57,6 +57,23 @@ def _cmd_generate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_serve(args: argparse.Namespace) -> int:
+    import webbrowser
+
+    import uvicorn
+
+    from .web.app import create_app
+
+    cfg = load_config()
+    app = create_app(cfg)
+    adresse = f"http://127.0.0.1:{args.port}"
+    print(f"Bewerbungs-App läuft auf {adresse} — mit Strg+C beenden.")
+    if not args.no_browser:
+        webbrowser.open(adresse)
+    uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="jobs", description="Bewerbungs-Pipeline")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -82,6 +99,11 @@ def main(argv: list[str] | None = None) -> int:
     p_gen = sub.add_parser("generate", help="Bewerbung für ausgewählte Stelle erzeugen")
     p_gen.add_argument("id", type=int)
     p_gen.set_defaults(func=_cmd_generate)
+
+    p_serve = sub.add_parser("serve", help="Weboberfläche starten")
+    p_serve.add_argument("--port", type=int, default=8765)
+    p_serve.add_argument("--no-browser", action="store_true")
+    p_serve.set_defaults(func=_cmd_serve)
 
     args = parser.parse_args(argv)
     return args.func(args)
