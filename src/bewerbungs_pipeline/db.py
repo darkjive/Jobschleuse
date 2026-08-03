@@ -5,7 +5,9 @@ from pathlib import Path
 
 from .models import JobItem
 
-STATUSES = {"new", "selected", "generated", "rejected"}
+STATUSES = {"new", "selected", "rejected"}
+
+SCHEMA_VERSION = 1
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -27,12 +29,48 @@ CREATE TABLE IF NOT EXISTS jobs (
 )
 """
 
+SCHEMA_APPLICATIONS = """
+CREATE TABLE IF NOT EXISTS applications (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id        INTEGER NOT NULL REFERENCES jobs(id),
+    template_path TEXT NOT NULL,
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL,
+    UNIQUE(job_id)
+)
+"""
+
+SCHEMA_APPLICATION_SLOTS = """
+CREATE TABLE IF NOT EXISTS application_slots (
+    application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    slot           TEXT NOT NULL,
+    value          TEXT NOT NULL,
+    source         TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    PRIMARY KEY (application_id, slot)
+)
+"""
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Führt Schemaschritte aus, die über CREATE TABLE hinausgehen."""
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    if version < 1:
+        conn.execute("UPDATE jobs SET status = 'selected' WHERE status = 'generated'")
+    if version < SCHEMA_VERSION:
+        conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        conn.commit()
+
 
 def connect(db_path: Path) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     conn.execute(SCHEMA)
+    conn.execute(SCHEMA_APPLICATIONS)
+    conn.execute(SCHEMA_APPLICATION_SLOTS)
+    _migrate(conn)
     return conn
 
 

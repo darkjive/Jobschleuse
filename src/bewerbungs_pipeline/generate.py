@@ -41,7 +41,7 @@ def generate_application(conn, job_id: int, cfg: Config, client) -> Path:
     row = dbmod.get_job(conn, job_id)
     if row is None:
         raise SystemExit(f"Job {job_id} nicht gefunden.")
-    if row["status"] not in ("selected", "generated"):
+    if row["status"] != "selected":
         raise SystemExit(
             f"Job {job_id} hat Status '{row['status']}' — erst mit `jobs pick {job_id}` auswählen."
         )
@@ -99,5 +99,4 @@ def generate_application(conn, job_id: int, cfg: Config, client) -> Path:
                 file=sys.stderr,
             )
 
-    dbmod.set_status(conn, job_id, "generated")
     return out_dir

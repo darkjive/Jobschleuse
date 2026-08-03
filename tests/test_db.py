@@ -80,3 +80,50 @@ def test_update_description(conn):
     job_id = db.list_jobs(conn)[0]["id"]
     db.update_description(conn, job_id, "Langer Anzeigentext")
     assert db.get_job(conn, job_id)["description_md"] == "Langer Anzeigentext"
+
+
+def test_connect_creates_application_tables(tmp_path):
+    conn = db.connect(tmp_path / "jobs.db")
+    tables = {
+        row[0]
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
+    assert "applications" in tables
+    assert "application_slots" in tables
+
+
+def test_connect_enables_foreign_keys(tmp_path):
+    conn = db.connect(tmp_path / "jobs.db")
+    assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+
+
+def test_connect_migrates_generated_status_to_selected(tmp_path):
+    db_path = tmp_path / "jobs.db"
+    conn = db.connect(db_path)
+    conn.execute(
+        """INSERT INTO jobs (url, dedupe_hash, title, company, location,
+                             source, scraped_at, status)
+           VALUES ('u', 'h', 't', 'c', 'l', 's', '2026-01-01', 'generated')"""
+    )
+    conn.execute("PRAGMA user_version = 0")
+    conn.commit()
+    conn.close()
+
+    conn = db.connect(db_path)
+    assert conn.execute("SELECT status FROM jobs").fetchone()[0] == "selected"
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION
+
+
+def test_set_status_rejects_generated(tmp_path):
+    conn = db.connect(tmp_path / "jobs.db")
+    conn.execute(
+        """INSERT INTO jobs (url, dedupe_hash, title, company, location,
+                             source, scraped_at)
+           VALUES ('u', 'h', 't', 'c', 'l', 's', '2026-01-01')"""
+    )
+    conn.commit()
+    job_id = conn.execute("SELECT id FROM jobs").fetchone()[0]
+    with pytest.raises(ValueError):
+        db.set_status(conn, job_id, "generated")
