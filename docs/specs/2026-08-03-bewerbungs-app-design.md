@@ -280,9 +280,13 @@ Slots vorhanden, keiner leer, Firmenname kommt vor) wandert unverändert nach
 
 ## Tests
 
-- Die sechs bestehenden Test-Module laufen unverändert weiter. Sie sind
-  gleichzeitig der Nachweis, dass das CLI den Umbau von `generate.py`
-  unbeschadet übersteht.
+- Die bestehenden Test-Module bleiben der Nachweis, dass das CLI den Umbau von
+  `generate.py` unbeschadet übersteht. **Eine Ausnahme:**
+  `tests/test_generate.py` prüft an drei Stellen `status == "generated"`
+  (Z. 78, 98) sowie den Status-Gate in Z. 101–106. Da `generated` als
+  Job-Status entfällt, werden diese Assertions umgestellt auf „eine
+  `applications`-Zeile für diesen Job existiert". Alle übrigen Testdateien
+  bleiben unverändert.
 - Neu: Unit-Tests für `applications.py` mit Fake-LLM-Client — das Muster steht
   bereits in `test_generate.py` und `test_llm.py`.
 - Neu: Route-Tests über FastAPIs `TestClient`, gegen eine temporäre DB.
