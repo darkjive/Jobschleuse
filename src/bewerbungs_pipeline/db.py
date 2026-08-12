@@ -130,6 +130,32 @@ def update_description(conn: sqlite3.Connection, job_id: int, text: str) -> None
     conn.commit()
 
 
+def suche_jobs(
+    conn: sqlite3.Connection,
+    status: str | None = None,
+    q: str | None = None,
+    ort: str | None = None,
+) -> list[sqlite3.Row]:
+    """Stellenliste mit optionalen Filtern.
+
+    `q` sucht in Titel und Firma, `ort` im Ort — beides ohne
+    Beachtung der Groß-/Kleinschreibung.
+    """
+    sql = "SELECT * FROM jobs WHERE 1=1"
+    werte: list[str] = []
+    if status:
+        sql += " AND status = ?"
+        werte.append(status)
+    if q:
+        sql += " AND (LOWER(title) LIKE ? OR LOWER(company) LIKE ?)"
+        werte.extend([f"%{q.lower()}%"] * 2)
+    if ort:
+        sql += " AND LOWER(location) LIKE ?"
+        werte.append(f"%{ort.lower()}%")
+    sql += " ORDER BY id DESC"
+    return conn.execute(sql, werte).fetchall()
+
+
 def row_to_item(row: sqlite3.Row) -> JobItem:
     return JobItem(
         title=row["title"],

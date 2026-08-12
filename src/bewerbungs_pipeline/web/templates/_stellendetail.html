@@ -1,0 +1,14 @@
+<article class="detail__inhalt">
+  <h2>{{ stelle.title }}</h2>
+  <p class="stelle__meta">{{ stelle.company }} · {{ stelle.location }}</p>
+  <p><a href="{{ stelle.url }}" target="_blank" rel="noreferrer">Anzeige bei der Quelle</a></p>
+
+  <div class="detail__aktionen">
+    <button class="knopf" hx-post="/jobs/{{ stelle.id }}/pick"
+            hx-target="#stellendetail">Auswählen</button>
+    <button class="knopf" hx-post="/jobs/{{ stelle.id }}/reject"
+            hx-target="#stellendetail">Aussortieren</button>
+  </div>
+
+  <pre class="detail__text">{{ stelle.description_md }}</pre>
+</article>

@@ -50,3 +50,72 @@ a { color: var(--accent); }
 }
 
 .meldung--fehler { border-color: #a8524a; color: #f0c4bf; }
+
+.spalten {
+  display: grid;
+  grid-template-columns: 15rem minmax(20rem, 1fr) minmax(20rem, 1.2fr);
+  gap: 1px;
+  background: var(--border);
+  height: calc(100vh - 3.25rem);
+}
+
+.spalten > * { background: var(--bg); overflow-y: auto; padding: 1rem; }
+
+.filter { background: var(--bg-sidebar); }
+.filter label { display: block; margin-bottom: 0.9rem; font-size: 0.85rem; color: var(--text-dim); }
+.filter input, .filter select {
+  display: block;
+  width: 100%;
+  margin-top: 0.3rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+}
+
+.stellen { list-style: none; margin: 0; padding: 0; }
+
+.stelle {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+}
+
+.stelle:hover { background: var(--bg-hover); border-color: var(--border); }
+
+.stelle__titel {
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  color: var(--text);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.stelle__titel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stelle__meta { font-size: 0.82rem; color: var(--text-dim); }
+
+.stelle__status {
+  justify-self: start;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.stelle__status--selected { color: var(--accent); }
+
+.detail__aktionen { display: flex; gap: 0.5rem; margin: 1rem 0; }
+
+.detail__text {
+  white-space: pre-wrap;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}

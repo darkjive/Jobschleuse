@@ -1,0 +1,32 @@
+{% extends "basis.html" %}
+
+{% block inhalt %}
+<div class="spalten">
+  <aside class="filter">
+    <form hx-get="/jobs" hx-target="#stellenliste" hx-trigger="submit, change delay:300ms">
+      <label>Status
+        <select name="status">
+          <option value="">alle</option>
+          <option value="new" selected>neu</option>
+          <option value="selected">ausgewählt</option>
+          <option value="rejected">aussortiert</option>
+        </select>
+      </label>
+      <label>Suche
+        <input type="search" name="q" placeholder="Titel oder Firma">
+      </label>
+      <label>Ort
+        <input type="search" name="ort" placeholder="z. B. Darmstadt">
+      </label>
+    </form>
+  </aside>
+
+  <section id="stellenliste" hx-get="/jobs?status=new" hx-trigger="load">
+    <p class="meldung">Liste wird geladen …</p>
+  </section>
+
+  <section id="stellendetail" class="detail">
+    <p class="meldung">Wähle links eine Stelle aus.</p>
+  </section>
+</div>
+{% endblock %}

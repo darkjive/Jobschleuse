@@ -29,8 +29,14 @@ def create_app(cfg: Config) -> FastAPI:
     app.state.cfg = cfg
     app.mount("/static", StaticFiles(directory=str(HIER / "static")), name="static")
 
+    # Erst hier importieren: routes/jobs.py greift auf get_conn und templates
+    # aus diesem Modul zu — ein Import auf Modulebene wäre zirkulär.
+    from .routes import jobs as jobs_routen
+
+    app.include_router(jobs_routen.router)
+
     @app.get("/")
     def index(request: Request):
-        return templates.TemplateResponse(request, "basis.html", {})
+        return templates.TemplateResponse(request, "stellen.html", {})
 
     return app

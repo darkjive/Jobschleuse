@@ -1,0 +1,18 @@
+{% if not stellen %}
+  <p class="meldung">Keine Stellen gefunden.</p>
+{% else %}
+  <ul class="stellen">
+    {% for stelle in stellen %}
+      <li class="stelle" id="stelle-{{ stelle.id }}">
+        <button class="stelle__titel" hx-get="/jobs/{{ stelle.id }}"
+                hx-target="#stellendetail">
+          {{ stelle.title }}
+        </button>
+        <span class="stelle__meta">{{ stelle.company }} · {{ stelle.location }}</span>
+        <span class="stelle__status stelle__status--{{ stelle.status }}">
+          {{ stelle.status }}
+        </span>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
