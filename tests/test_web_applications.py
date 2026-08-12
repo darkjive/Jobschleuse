@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from fastapi.testclient import TestClient
 
 from bewerbungs_pipeline import applications, db
+from bewerbungs_pipeline import tasks as tasks_modul
 from bewerbungs_pipeline.config import Config
 from bewerbungs_pipeline.models import JobItem
 from bewerbungs_pipeline.web.app import create_app
@@ -136,13 +137,24 @@ def test_vorschau_liefert_gefuelltes_html(tmp_path):
     assert "Dieser Text ist statisch und bleibt unverändert." in antwort.text
 
 
-def test_export_schreibt_dateien(tmp_path):
+def test_export_laeuft_im_hintergrund(tmp_path):
+    """Der Export dauert Sekunden (PDF-Druck) — er darf die Anfrage nicht blockieren."""
     cfg = make_cfg(tmp_path)
     app_id = bewerbung_anlegen(cfg, seed(cfg))
     client = TestClient(create_app(cfg))
     antwort = client.post(f"/applications/{app_id}/export")
     assert antwort.status_code == 200
+    assert "/tasks/" in antwort.text
+
+    task_id = re.search(r"/tasks/(\w+)", antwort.text).group(1)
+    frist = time.monotonic() + 60.0
+    while time.monotonic() < frist and tasks_modul.get(task_id).status == "läuft":
+        time.sleep(0.05)
+    task = tasks_modul.get(task_id)
+    assert task.status == "fertig", task.meldung
     assert (cfg.out_dir / "beispiel-ag" / "index.html").exists()
+    assert (cfg.out_dir / "beispiel-ag" / "Bewerbung_Alain Ritter_Beispiel AG.pdf").exists()
+    assert "beispiel-ag" in task.ergebnis
 
 
 def test_slot_erzeugen_setzt_neuen_text(tmp_path, monkeypatch):

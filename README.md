@@ -46,3 +46,19 @@ Läuft ausschließlich lokal, ohne Login.
 
 Das CLI bleibt unverändert nutzbar.
 
+## Ergebnis des Exports
+
+Je Bewerbung entsteht `out/<firma>/`:
+
+- `Bewerbung_<Name>_<Firma>.pdf` – das fertige Dokument
+- `index.html`, `styles.css`, `assets/` – dieselbe Bewerbung als HTML, für
+  Nachkorrekturen von Hand
+- `stelle.md` – die Stellenanzeige zum Nachlesen
+
+Das PDF wird über einen im System vorhandenen Chromium gedruckt (`chromium`,
+`google-chrome` oder `brave`; Playwright steuert ihn nur). Ohne Browser
+bricht der Export mit einer entsprechenden Meldung ab.
+
+Die Vorlage bringt Schriften, Icons und Bilder lokal mit — Vorschau und PDF
+sehen deshalb offline genauso aus wie online.
+

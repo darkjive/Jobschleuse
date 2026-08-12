@@ -168,7 +168,11 @@ def test_export_copies_to_cbks_inbox(tmp_path):
     app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
     applications.export(conn, app_id, cfg)
     names = {p.name for p in inbox.iterdir()}
-    assert names == {"bewerbung-beispiel-ag.html", "stelle-beispiel-ag.md"}
+    assert names == {
+        "bewerbung-beispiel-ag.html",
+        "stelle-beispiel-ag.md",
+        "Bewerbung_Alain Ritter_Beispiel AG.pdf",
+    }
 
 
 def test_export_missing_inbox_warns_but_succeeds(tmp_path, capsys):
@@ -202,3 +206,44 @@ def test_regenerate_slot_rejects_unknown_slot(tmp_path):
     app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
     with pytest.raises(applications.ApplicationError, match="Unbekannter Slot"):
         applications.regenerate_slot(conn, app_id, "gibtsnicht", cfg, FakeClient({}))
+
+
+def test_export_erzeugt_pdf(tmp_path):
+    """Das PDF ist das eigentliche Ergebnis — Dateiname wie beim Vorbild."""
+    cfg = make_cfg(tmp_path)
+    job_id = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
+    out_dir = applications.export(conn, app_id, cfg)
+    pdfs = list(out_dir.glob("*.pdf"))
+    assert len(pdfs) == 1
+    assert pdfs[0].name == "Bewerbung_Alain Ritter_Beispiel AG.pdf"
+    assert pdfs[0].read_bytes().startswith(b"%PDF")
+
+
+def test_export_ohne_browser_meldet_deutsch(tmp_path, monkeypatch):
+    from bewerbungs_pipeline import pdf as pdf_modul
+
+    cfg = make_cfg(tmp_path)
+    job_id = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
+    monkeypatch.setattr(pdf_modul, "browser_pfad", lambda: None)
+    with pytest.raises(applications.ApplicationError, match="Chromium"):
+        applications.export(conn, app_id, cfg)
+
+
+def test_export_warnt_bei_fehlendem_asset(tmp_path, capsys):
+    """Fehlt ein in der Vorlage verlinktes Bild, darf das nicht still passieren."""
+    cfg = make_cfg(tmp_path)
+    vorlage = tmp_path / "mit_bild.html"
+    vorlage.write_text(
+        '<html><body><img src="assets/gibtsnicht.png" alt="x">'
+        '<p data-slot="firma">Muster</p></body></html>'
+    )
+    cfg = replace(cfg, template_path=vorlage)
+    job_id = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    app_id = applications.create(conn, job_id, cfg, FakeClient({"firma": "Beispiel AG"}))
+    applications.export(conn, app_id, cfg)
+    assert "gibtsnicht.png" in capsys.readouterr().err

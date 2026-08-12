@@ -52,6 +52,20 @@ def bewerbung_erzeugen(cfg: Config, job_id: int) -> int:
         conn.close()
 
 
+def exportieren_lauf(cfg: Config, app_id: int) -> str:
+    """Hintergrund-Thread: eigene Verbindung.
+
+    Der Export druckt das PDF über einen Browser und braucht dafür Sekunden —
+    zu lang, um eine Anfrage darauf warten zu lassen.
+    """
+    conn = db.connect(cfg.db_path)
+    try:
+        ziel = applications.export(conn, app_id, cfg)
+        return f"Exportiert nach {ziel}"
+    finally:
+        conn.close()
+
+
 def slot_erzeugen(cfg: Config, app_id: int, slot: str) -> str:
     """Hintergrund-Thread: eigene Verbindung, eigener Client."""
     conn = db.connect(cfg.db_path)
@@ -163,14 +177,11 @@ def vorschau(
 
 
 @router.post("/applications/{app_id}/export", response_class=HTMLResponse)
-def exportieren(
-    app_id: int, request: Request, conn: sqlite3.Connection = Depends(get_conn)
-):
+def exportieren(app_id: int, request: Request):
     cfg = request.app.state.cfg
-    try:
-        ziel = applications.export(conn, app_id, cfg)
-    except ApplicationError as exc:
-        return _fehler(exc)
-    return HTMLResponse(
-        f'<p class="meldung">Exportiert nach {html.escape(str(ziel))}</p>'
+    task_id = tasks.start("Bewerbung wird exportiert", exportieren_lauf, cfg, app_id)
+    return templates.TemplateResponse(
+        request,
+        "_fortschritt.html",
+        {"task": tasks.get(task_id), "ziel": "", "ziel_element": ""},
     )

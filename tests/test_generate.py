@@ -86,7 +86,11 @@ def test_generate_copies_to_cbks_inbox(tmp_path):
     conn = db.connect(cfg.db_path)
     generate.generate_application(conn, job_id, cfg, FakeClient(GOOD))
     names = {p.name for p in inbox.iterdir()}
-    assert names == {"bewerbung-beispiel-ag.html", "stelle-beispiel-ag.md"}
+    assert names == {
+        "bewerbung-beispiel-ag.html",
+        "stelle-beispiel-ag.md",
+        "Bewerbung_Alain Ritter_Beispiel AG.pdf",
+    }
 
 
 def test_generate_missing_inbox_warns_but_succeeds(tmp_path, capsys):
