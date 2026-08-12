@@ -21,8 +21,17 @@ jobs = "bewerbungs_pipeline.cli:main"
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
-    "httpx2>=2.9.1",
     "pytest",
+]
+
+[tool.pytest.ini_options]
+# "error" macht alle Warnungen zu Fehlern, damit neue Warnungen die Suite
+# nicht unbemerkt durchlaufen. Ausnahme: starlette.testclient warnt beim
+# Einsatz von httpx (statt des optionalen httpx2-Pakets) - das ist für uns
+# kein Fehlverhalten, sondern der von starlette vorgesehene Fallback.
+filterwarnings = [
+    "error",
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.:starlette.exceptions.StarletteDeprecationWarning",
 ]
 
 [build-system]
