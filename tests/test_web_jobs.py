@@ -197,3 +197,17 @@ def test_task_status_unbekannt_meldet_deutsch(tmp_path):
     antwort = client.get("/tasks/gibtsnicht")
     assert antwort.status_code == 404
     assert "nicht gefunden" in antwort.text
+
+
+def test_task_status_verwirft_fremdes_ziel(tmp_path):
+    cfg = make_cfg(tmp_path)
+    task_id = tasks_modul.start("Testlauf", lambda: "fertig")
+    _warte_auf_task(task_id)
+    client = TestClient(create_app(cfg))
+    antwort = client.get(
+        f"/tasks/{task_id}",
+        params={"ziel": "https://boese.example/x", "ziel_element": "body"},
+    )
+    assert antwort.status_code == 200
+    assert "boese.example" not in antwort.text
+    assert "hx-get" not in antwort.text
