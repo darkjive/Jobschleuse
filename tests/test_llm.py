@@ -285,3 +285,11 @@ def test_generate_single_slot_weist_zusaetzliche_grussformel_zurueck():
             client, "test-model", _job(), "text", "Ich bewerbe mich gern.",
             {"name": "Alain"}, {},
         )
+
+
+def test_prompt_verbietet_technologien_aus_der_anzeige():
+    """Das Modell schrieb dem Bewerber PHP8 und SCSS zu, weil die Anzeige sie
+    forderte — im Profil stehen sie nicht."""
+    prompt = llm.build_prompt(JOB, {"x": "y"}, {"name": "Alain"})
+    assert "Technologien" in prompt
+    assert "fordert" in prompt or "verlangt" in prompt

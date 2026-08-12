@@ -51,6 +51,10 @@ Regeln:
   Bewerberprofil. Steht dort kein Studium, erwähne keines.
 - Fehlt dir eine Angabe, lass sie weg. Schreibe niemals Platzhalter wie
   "Straße Hausnr", "PLZ Ort" oder "Musterstadt".
+- Nenne nur Technologien, Werkzeuge und Kenntnisse, die im Bewerberprofil
+  stehen. Fordert die Anzeige etwas, das dort fehlt, schreibe es dem Bewerber
+  nicht zu — verlangt sie etwa PHP und das Profil nennt es nicht, dann kommt
+  PHP im Text nicht vor.
 - Die Beispieltexte geben nur Stil, Aufbau und Länge vor. Übernimm daraus keine
   konkreten Angaben und ergänze nichts, was dort nicht vorkommt — endet ein
   Beispieltext ohne Grußformel und Unterschrift, gehört auch in den neuen Text
@@ -272,6 +276,8 @@ Regeln:
 - Erfinde keine Fakten über die Firma, die nirgends stehen.
 - Erfinde ebenso wenig Angaben über den Bewerber: Abschlüsse, Titel, Zertifikate
   und Arbeitgeber ausschließlich aus dem Bewerberprofil.
+- Nenne nur Technologien und Kenntnisse, die im Bewerberprofil stehen, auch wenn
+  die Anzeige andere verlangt.
 - Fehlt dir eine Angabe, lass sie weg — keine Platzhalter wie "Straße Hausnr".
 - Ergänze nichts, was der bisherige Text nicht hatte; endet er ohne Grußformel
   und Unterschrift, gilt das auch für den neuen Text.
