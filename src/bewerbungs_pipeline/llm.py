@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import date
 
 from openai import OpenAI
@@ -116,6 +117,14 @@ GRUSSFORMELN = (
     "beste grüße",
     "herzliche grüße",
     "viele grüße",
+)
+
+
+# Zusaetzlich zu den Wendungen oben: angefangene Angaben wie "+49 ..." oder
+# "<hier eintragen>", wie sie in Beispieldateien stehen.
+PLATZHALTER_MUSTER = re.compile(
+    "|".join([*(re.escape(p) for p in PLATZHALTER), r"\.\.\.", r"<[^>]+>", r"\bxxx\b"]),
+    re.IGNORECASE,
 )
 
 

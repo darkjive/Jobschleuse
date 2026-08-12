@@ -247,3 +247,27 @@ def test_export_warnt_bei_fehlendem_asset(tmp_path, capsys):
     app_id = applications.create(conn, job_id, cfg, FakeClient({"firma": "Beispiel AG"}))
     applications.export(conn, app_id, cfg)
     assert "gibtsnicht.png" in capsys.readouterr().err
+
+
+def test_create_meldet_unausgefuelltes_profil(tmp_path):
+    """Ein Profil mit Beispielwerten fuehrt zu erfundenen Angaben in der
+    Bewerbung — das darf nicht stillschweigend durchlaufen."""
+    cfg = make_cfg(tmp_path)
+    cfg.profile_path.write_text(
+        'name: Alain Ritter\nadresse: "Straße Hausnr, PLZ Ort"\ntelefon: "+49 ..."\n'
+    )
+    job_id = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    with pytest.raises(applications.ApplicationError, match="profile.yaml"):
+        applications.create(conn, job_id, cfg, FakeClient(GOOD))
+
+
+def test_create_akzeptiert_ausgefuelltes_profil(tmp_path):
+    cfg = make_cfg(tmp_path)
+    cfg.profile_path.write_text(
+        "name: Alain Ritter\nadresse: Amselweg 33, 64295 Darmstadt\n"
+        "telefon: 0151 29 56 41 92\n"
+    )
+    job_id = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    assert applications.create(conn, job_id, cfg, FakeClient(GOOD)) > 0

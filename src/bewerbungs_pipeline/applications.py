@@ -8,7 +8,7 @@ from pathlib import Path
 import yaml
 
 from . import db as dbmod
-from . import pdf
+from . import llm, pdf
 from .config import Config
 from .llm import GenerationError, generate_single_slot, generate_slot_texts
 from .slots import extract_slots, fill_slots
@@ -54,7 +54,19 @@ def _load_profile(cfg: Config) -> dict:
         raise ApplicationError(
             f"Profil fehlt: {cfg.profile_path} (Muster: profile.yaml.example)"
         )
-    return yaml.safe_load(cfg.profile_path.read_text())
+    profil = yaml.safe_load(cfg.profile_path.read_text())
+    offen = [
+        f"{feld}: {wert}"
+        for feld, wert in (profil or {}).items()
+        if isinstance(wert, str) and llm.PLATZHALTER_MUSTER.search(wert)
+    ]
+    if offen:
+        raise ApplicationError(
+            f"In {cfg.profile_path} stehen noch Beispielwerte: {', '.join(offen)}. "
+            "Das Modell übernimmt sie wörtlich in die Bewerbung — bitte "
+            "erst ausfüllen."
+        )
+    return profil
 
 
 def _template_slots(cfg: Config) -> tuple[str, dict[str, str]]:
