@@ -142,6 +142,27 @@ def _grussformel_in(text: str) -> str | None:
     return next((g for g in GRUSSFORMELN if g in unten), None)
 
 
+def ohne_ueberzaehlige_grussformel(wert: str, beispiel: str) -> str:
+    """Kappt eine Grußformel am Textende, wenn die Vorlage selbst eine setzt.
+
+    Reparieren statt abbrechen: das Modell haengt die Formel hartnaeckig an,
+    und zwei gescheiterte Versuche hiessen gar keine Bewerbung — dabei ist der
+    Abschluss eindeutig abtrennbar.
+    """
+    if _grussformel_in(beispiel):
+        return wert
+    zeilen = wert.split("\n")
+    for i, zeile in enumerate(zeilen):
+        if not _grussformel_in(zeile):
+            continue
+        # Nur kappen, wenn ab hier nichts Inhaltliches mehr kommt: hinter der
+        # Formel steht hoechstens noch der Name.
+        rest = [z for z in zeilen[i + 1 :] if z.strip()]
+        if len(rest) <= 1 and len(zeile.split()) <= 6:
+            return "\n".join(zeilen[:i]).rstrip()
+    return wert
+
+
 def pruefe_text(name: str, wert: str, beispiel: str) -> list[str]:
     """Prüft einen einzelnen Slot-Text gegen seinen Beispieltext.
 
@@ -234,6 +255,12 @@ def generate_slot_texts(
         except (json.JSONDecodeError, IndexError):
             last_problems = ["Antwort war kein gültiges JSON"]
         else:
+            values = {
+                name: ohne_ueberzaehlige_grussformel(wert, slots.get(name, ""))
+                if isinstance(wert, str)
+                else wert
+                for name, wert in values.items()
+            }
             last_problems = validate_values(values, slots, job.company)
             if not last_problems:
                 return values
@@ -337,6 +364,7 @@ def generate_single_slot(
         else:
             value = values.get(slot)
             if isinstance(value, str) and value.strip():
+                value = ohne_ueberzaehlige_grussformel(value, beispiel)
                 maengel = pruefe_text(slot, value, beispiel)
                 if not maengel:
                     return value

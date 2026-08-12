@@ -276,15 +276,17 @@ def test_generate_single_slot_weist_platzhalter_zurueck():
         )
 
 
-def test_generate_single_slot_weist_zusaetzliche_grussformel_zurueck():
+def test_generate_single_slot_kappt_zusaetzliche_grussformel():
+    """Auch beim einzelnen Block wird gekappt statt abgebrochen."""
     client = AufzeichnenderClient(
         {"text": "Ich bewerbe mich.\n\nMit freundlichen Grüßen\nAlain"}
     )
-    with pytest.raises(llm.GenerationError, match="Grußformel"):
-        llm.generate_single_slot(
-            client, "test-model", _job(), "text", "Ich bewerbe mich gern.",
-            {"name": "Alain"}, {},
-        )
+    ergebnis = llm.generate_single_slot(
+        client, "test-model", _job(), "text", "Ich bewerbe mich gern.",
+        {"name": "Alain"}, {},
+    )
+    assert ergebnis == "Ich bewerbe mich."
+    assert len(client.aufrufe) == 1
 
 
 def test_prompt_verbietet_technologien_aus_der_anzeige():
@@ -293,3 +295,36 @@ def test_prompt_verbietet_technologien_aus_der_anzeige():
     prompt = llm.build_prompt(JOB, {"x": "y"}, {"name": "Alain"})
     assert "Technologien" in prompt
     assert "fordert" in prompt or "verlangt" in prompt
+
+
+def test_grussformel_wird_abgeschnitten_statt_abzubrechen():
+    """Das Modell haengt die Formel hartnaeckig an — zweimal scheitern hiesse
+    gar keine Bewerbung. Abschneiden ist eindeutig und rettet den Lauf."""
+    text = (
+        "Sehr geehrte Damen und Herren,\n\nich bewerbe mich bei Ihnen.\n\n"
+        "Mit freundlichen Grüßen\nAlain Ritter"
+    )
+    bereinigt = llm.ohne_ueberzaehlige_grussformel(text, beispiel="Ich bewerbe mich.")
+    assert bereinigt.endswith("ich bewerbe mich bei Ihnen.")
+    assert "Grüßen" not in bereinigt
+
+
+def test_grussformel_bleibt_wenn_die_vorlage_eine_hat():
+    text = "Mit freundlichen Grüßen\nAlain Ritter"
+    assert llm.ohne_ueberzaehlige_grussformel(text, "Mit besten Grüßen\nAlain") == text
+
+
+def test_grussformel_mitten_im_text_bleibt_unangetastet():
+    """Nur der Abschluss wird gekappt, nicht eine Erwaehnung im Fliesstext."""
+    text = "Ich schreibe „Mit freundlichen Grüßen“ ans Ende und dann noch mehr Text."
+    assert llm.ohne_ueberzaehlige_grussformel(text, "Beispiel") == text
+
+
+def test_generate_slot_texts_rettet_lauf_mit_grussformel():
+    slots = {"firma": "Muster GmbH", "text": "Ich bewerbe mich."}
+    client = AufzeichnenderClient(
+        {"firma": "Beispiel AG", "text": "Ich bewerbe mich.\n\nMit besten Grüßen\nAlain"}
+    )
+    werte = llm.generate_slot_texts(client, "m", _job(), slots, {"name": "Alain"})
+    assert werte["text"] == "Ich bewerbe mich."
+    assert len(client.aufrufe) == 1, "kein zweiter Versuch noetig"
