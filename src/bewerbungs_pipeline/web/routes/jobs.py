@@ -3,7 +3,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse
 
-from ... import db, tasks
+from ... import applications, db, tasks
 from ...config import Config
 from ...sources import arbeitsagentur
 from ..app import get_conn, templates
@@ -18,7 +18,11 @@ def _detail(request: Request, conn: sqlite3.Connection, job_id: int) -> HTMLResp
             '<p class="meldung meldung--fehler">Stelle nicht gefunden.</p>',
             status_code=404,
         )
-    return templates.TemplateResponse(request, "_stellendetail.html", {"stelle": stelle})
+    return templates.TemplateResponse(
+        request,
+        "_stellendetail.html",
+        {"stelle": stelle, "bewerbung": applications.get_by_job(conn, job_id)},
+    )
 
 
 @router.get("/jobs", response_class=HTMLResponse)

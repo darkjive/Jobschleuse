@@ -1,0 +1,156 @@
+import json
+from datetime import UTC, datetime
+from pathlib import Path
+from types import SimpleNamespace
+
+from fastapi.testclient import TestClient
+
+from bewerbungs_pipeline import applications, db
+from bewerbungs_pipeline.config import Config
+from bewerbungs_pipeline.models import JobItem
+from bewerbungs_pipeline.web.app import create_app
+
+TEMPLATE = Path(__file__).parent / "fixtures" / "template_mini.html"
+
+GOOD = {
+    "titel": "Bewerbung — Beispiel AG",
+    "firma": "Beispiel AG",
+    "einstieg": "Ihre Anzeige hat mich überzeugt.",
+    "motivation": "Wartung und Service sind mein Feld.",
+}
+
+
+class FakeClient:
+    def __init__(self, payload: dict):
+        message = SimpleNamespace(content=json.dumps(payload, ensure_ascii=False))
+        response = SimpleNamespace(choices=[SimpleNamespace(message=message)])
+        self.chat = SimpleNamespace(
+            completions=SimpleNamespace(create=lambda **kw: response)
+        )
+
+
+def make_cfg(tmp_path) -> Config:
+    profile = tmp_path / "profile.yaml"
+    profile.write_text("name: Alain Ritter\n")
+    return Config(
+        db_path=tmp_path / "jobs.db",
+        out_dir=tmp_path / "out",
+        template_path=TEMPLATE,
+        profile_path=profile,
+        cbks_inbox=None,
+        llm_base_url="http://localhost",
+        llm_api_key="test",
+        llm_model="test-model",
+    )
+
+
+def seed(cfg) -> int:
+    conn = db.connect(cfg.db_path)
+    db.insert_job(
+        conn,
+        JobItem(
+            title="Servicetechniker (m/w/d)",
+            company="Beispiel AG",
+            location="Frankfurt am Main",
+            url="https://example.org/job/1",
+            source="arbeitsagentur",
+            description_md="Wir suchen Verstärkung im Service.",
+            scraped_at=datetime.now(UTC),
+        ),
+    )
+    job_id = db.list_jobs(conn)[0]["id"]
+    db.set_status(conn, job_id, "selected")
+    conn.close()
+    return job_id
+
+
+def bewerbung_anlegen(cfg, job_id) -> int:
+    conn = db.connect(cfg.db_path)
+    app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
+    conn.close()
+    return app_id
+
+
+def test_bewerbung_erzeugen_legt_datensatz_an(tmp_path, monkeypatch):
+    from bewerbungs_pipeline.web.routes import applications as app_routen
+
+    cfg = make_cfg(tmp_path)
+    job_id = seed(cfg)
+    monkeypatch.setattr(app_routen, "make_client", lambda *a, **k: FakeClient(GOOD))
+    app_id = app_routen.bewerbung_erzeugen(cfg, job_id)
+    conn = db.connect(cfg.db_path)
+    assert applications.get(conn, app_id) is not None
+
+
+def test_bewerbungsseite_zeigt_slots(tmp_path):
+    cfg = make_cfg(tmp_path)
+    app_id = bewerbung_anlegen(cfg, seed(cfg))
+    client = TestClient(create_app(cfg))
+    antwort = client.get(f"/bewerbung/{app_id}")
+    assert antwort.status_code == 200
+    assert "motivation" in antwort.text
+    assert "Wartung und Service sind mein Feld." in antwort.text
+
+
+def test_bewerbungsseite_unbekannt_meldet_deutsch(tmp_path):
+    cfg = make_cfg(tmp_path)
+    client = TestClient(create_app(cfg))
+    antwort = client.get("/bewerbung/999")
+    assert antwort.status_code == 404
+    assert "nicht gefunden" in antwort.text
+
+
+def test_slot_speichern(tmp_path):
+    cfg = make_cfg(tmp_path)
+    app_id = bewerbung_anlegen(cfg, seed(cfg))
+    client = TestClient(create_app(cfg))
+    antwort = client.put(
+        f"/applications/{app_id}/slots/motivation", data={"value": "Neu von Hand."}
+    )
+    assert antwort.status_code == 200
+    conn = db.connect(cfg.db_path)
+    slot = applications.get(conn, app_id)["slots"]["motivation"]
+    assert slot["value"] == "Neu von Hand."
+    assert slot["source"] == "manuell"
+
+
+def test_slot_speichern_unbekannt_meldet_deutsch(tmp_path):
+    cfg = make_cfg(tmp_path)
+    app_id = bewerbung_anlegen(cfg, seed(cfg))
+    client = TestClient(create_app(cfg))
+    antwort = client.put(f"/applications/{app_id}/slots/gibtsnicht", data={"value": "x"})
+    assert antwort.status_code == 400
+    assert "Unbekannter Slot" in antwort.text
+
+
+def test_vorschau_liefert_gefuelltes_html(tmp_path):
+    cfg = make_cfg(tmp_path)
+    app_id = bewerbung_anlegen(cfg, seed(cfg))
+    client = TestClient(create_app(cfg))
+    antwort = client.get(f"/applications/{app_id}/preview")
+    assert antwort.status_code == 200
+    assert "Beispiel AG" in antwort.text
+    assert "Dieser Text ist statisch und bleibt unverändert." in antwort.text
+
+
+def test_export_schreibt_dateien(tmp_path):
+    cfg = make_cfg(tmp_path)
+    app_id = bewerbung_anlegen(cfg, seed(cfg))
+    client = TestClient(create_app(cfg))
+    antwort = client.post(f"/applications/{app_id}/export")
+    assert antwort.status_code == 200
+    assert (cfg.out_dir / "beispiel-ag" / "index.html").exists()
+
+
+def test_slot_erzeugen_setzt_neuen_text(tmp_path, monkeypatch):
+    from bewerbungs_pipeline.web.routes import applications as app_routen
+
+    cfg = make_cfg(tmp_path)
+    app_id = bewerbung_anlegen(cfg, seed(cfg))
+    monkeypatch.setattr(
+        app_routen,
+        "make_client",
+        lambda *a, **k: FakeClient({"motivation": "Frisch erzeugt."}),
+    )
+    text = app_routen.slot_erzeugen(cfg, app_id, "motivation")
+    assert text == "Frisch erzeugt."

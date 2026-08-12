@@ -1,0 +1,16 @@
+<li class="slot" id="slot-{{ name }}">
+  <div class="slot__kopf">
+    <label for="feld-{{ name }}"><code>{{ name }}</code></label>
+    <span class="slot__quelle slot__quelle--{{ daten.source }}">
+      {% if daten.source == "llm" %}vom Modell{% else %}von Hand{% endif %}
+    </span>
+    <button class="knopf" hx-post="/applications/{{ app_id }}/slots/{{ name }}/regenerate"
+            hx-target="#fortschritt-{{ name }}">Neu erzeugen</button>
+  </div>
+  <form hx-put="/applications/{{ app_id }}/slots/{{ name }}"
+        hx-target="#slot-{{ name }}" hx-swap="outerHTML">
+    <textarea id="feld-{{ name }}" name="value" rows="4">{{ daten.value }}</textarea>
+    <button class="knopf" type="submit">Speichern</button>
+  </form>
+  <div id="fortschritt-{{ name }}"></div>
+</li>

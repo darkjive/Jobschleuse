@@ -8,7 +8,16 @@
             hx-target="#stellendetail">Auswählen</button>
     <button class="knopf" hx-post="/jobs/{{ stelle.id }}/reject"
             hx-target="#stellendetail">Aussortieren</button>
+    {% if bewerbung %}
+      <a class="knopf knopf--haupt" href="/bewerbung/{{ bewerbung.id }}">Bewerbung öffnen</a>
+    {% elif stelle.status == "selected" %}
+      <form hx-post="/applications" hx-target="#bewerbungsfortschritt">
+        <input type="hidden" name="job_id" value="{{ stelle.id }}">
+        <button class="knopf knopf--haupt" type="submit">Bewerbung erstellen</button>
+      </form>
+    {% endif %}
   </div>
+  <div id="bewerbungsfortschritt"></div>
 
   <pre class="detail__text">{{ stelle.description_md }}</pre>
 </article>
