@@ -1,3 +1,4 @@
+import re
 import sqlite3
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -10,6 +11,17 @@ from ...llm import make_client
 from ..app import get_conn, templates
 
 router = APIRouter()
+
+_ASSET_RE = re.compile(r'(?P<attr>\b(?:href|src)=")(?P<pfad>(?!https?:|/|data:|#)[^"]+)"')
+
+
+def pfade_umschreiben(html: str) -> str:
+    """Macht relative Vorlagen-Pfade im iframe auflösbar.
+
+    Betrifft nur die Vorschau — die exportierte Datei in out/ bleibt
+    unverändert, dort liegen styles.css und assets/ daneben.
+    """
+    return _ASSET_RE.sub(r'\g<attr>/template-assets/\g<pfad>"', html)
 
 
 def _client(cfg: Config):
@@ -109,7 +121,7 @@ def vorschau(
         return HTMLResponse(
             f'<p class="meldung meldung--fehler">{exc}</p>', status_code=400
         )
-    return HTMLResponse(html)
+    return HTMLResponse(pfade_umschreiben(html))
 
 
 @router.post("/applications/{app_id}/export", response_class=HTMLResponse)

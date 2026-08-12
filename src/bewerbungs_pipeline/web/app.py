@@ -29,6 +29,14 @@ def create_app(cfg: Config) -> FastAPI:
     app.state.cfg = cfg
     app.mount("/static", StaticFiles(directory=str(HIER / "static")), name="static")
 
+    vorlagen_ordner = cfg.template_path.parent
+    if vorlagen_ordner.is_dir():
+        app.mount(
+            "/template-assets",
+            StaticFiles(directory=str(vorlagen_ordner)),
+            name="template-assets",
+        )
+
     # Erst hier importieren: routes/jobs.py greift auf get_conn und templates
     # aus diesem Modul zu — ein Import auf Modulebene wäre zirkulär.
     from .routes import applications as bewerbungs_routen

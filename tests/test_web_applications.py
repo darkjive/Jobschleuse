@@ -11,6 +11,7 @@ from bewerbungs_pipeline.models import JobItem
 from bewerbungs_pipeline.web.app import create_app
 
 TEMPLATE = Path(__file__).parent / "fixtures" / "template_mini.html"
+TEMPLATE_MIT_ASSETS = Path(__file__).parent / "fixtures" / "template_assets.html"
 
 GOOD = {
     "titel": "Bewerbung — Beispiel AG",
@@ -154,3 +155,29 @@ def test_slot_erzeugen_setzt_neuen_text(tmp_path, monkeypatch):
     )
     text = app_routen.slot_erzeugen(cfg, app_id, "motivation")
     assert text == "Frisch erzeugt."
+
+
+def test_pfade_umschreiben_setzt_praefix():
+    from bewerbungs_pipeline.web.routes import applications as app_routen
+
+    html = '<link rel="stylesheet" href="styles.css"><img src="assets/foto.png">'
+    ergebnis = app_routen.pfade_umschreiben(html)
+    assert 'href="/template-assets/styles.css"' in ergebnis
+    assert 'src="/template-assets/assets/foto.png"' in ergebnis
+
+
+def test_pfade_umschreiben_laesst_absolute_pfade_in_ruhe():
+    from bewerbungs_pipeline.web.routes import applications as app_routen
+
+    html = '<img src="https://example.org/x.png"><img src="/schon-absolut.png">'
+    assert app_routen.pfade_umschreiben(html) == html
+
+
+def test_vorschau_schreibt_assetpfade_um(tmp_path):
+    from dataclasses import replace
+
+    cfg = replace(make_cfg(tmp_path), template_path=TEMPLATE_MIT_ASSETS)
+    app_id = bewerbung_anlegen(cfg, seed(cfg))
+    client = TestClient(create_app(cfg))
+    antwort = client.get(f"/applications/{app_id}/preview")
+    assert "/template-assets/styles.css" in antwort.text
