@@ -222,3 +222,66 @@ def test_generationerror_zeigt_die_rohantwort():
     with pytest.raises(llm.GenerationError) as fehler:
         llm.generate_slot_texts(client, "test-model", _job(), slots, {})
     assert "kaputt" in str(fehler.value)
+
+
+def test_validate_values_meldet_erfundene_adresse():
+    """Kennt das Modell die Anschrift nicht, baut es die Struktur nach —
+    „Straße Hausnr, PLZ Ort“ landete so schon in einer fertigen Bewerbung."""
+    slots = {"adressat": "AC Motoren GmbH\nz. Hd. Nina Klussmann\nEinsteinstr. 17"}
+    werte = {"adressat": "Beispiel AG, Straße Hausnr, PLZ Ort"}
+    probleme = llm.validate_values(werte, slots, "Beispiel AG")
+    assert any("Platzhalter" in p for p in probleme)
+
+
+def test_validate_values_meldet_zusaetzliche_grussformel():
+    """Die Vorlage setzt Gruss und Unterschrift selbst — steht beides auch im
+    Textblock, erscheint es doppelt."""
+    slots = {"anschreiben_text": "Liebe Nina,\n\nich bewerbe mich bei Ihnen."}
+    werte = {
+        "anschreiben_text": "Sehr geehrte Damen und Herren,\n\nich bewerbe mich.\n\n"
+        "Mit freundlichen Grüßen,\nAlain Ritter"
+    }
+    probleme = llm.validate_values(werte, slots, "Beispiel AG")
+    assert any("Grußformel" in p for p in probleme)
+
+
+def test_validate_values_erlaubt_grussformel_wenn_vorlage_eine_hat():
+    slots = {"gruss": "Mit besten Grüßen\nAlain Ritter"}
+    werte = {"gruss": "Mit freundlichen Grüßen\nAlain Ritter"}
+    probleme = llm.validate_values(werte, slots, "Alain")
+    assert not any("Grußformel" in p for p in probleme)
+
+
+def test_validate_values_laesst_normale_anrede_durch():
+    slots = {"einstieg": "Mit großem Interesse habe ich Ihre Anzeige gelesen."}
+    werte = {"einstieg": "Sehr geehrte Damen und Herren, Ihre Anzeige der Beispiel AG …"}
+    assert llm.validate_values(werte, slots, "Beispiel AG") == []
+
+
+def test_prompt_verbietet_erfundene_angaben_ueber_den_bewerber():
+    prompt = llm.build_prompt(JOB, {"x": "y"}, {"name": "Alain"})
+    assert "Bewerberprofil" in prompt
+    assert "erfinde" in prompt.lower()
+    # Der bisherige Prompt verbot nur Erfundenes ueber die Firma.
+    assert "Abschlüsse" in prompt or "Qualifikationen" in prompt
+
+
+def test_generate_single_slot_weist_platzhalter_zurueck():
+    """Auch „Neu erzeugen“ darf keine erfundene Anschrift liefern."""
+    client = AufzeichnenderClient({"adressat": "Beispiel AG, Straße Hausnr, PLZ Ort"})
+    with pytest.raises(llm.GenerationError, match="Platzhalter"):
+        llm.generate_single_slot(
+            client, "test-model", _job(), "adressat",
+            "AC Motoren GmbH\nEinsteinstr. 17", {"name": "Alain"}, {},
+        )
+
+
+def test_generate_single_slot_weist_zusaetzliche_grussformel_zurueck():
+    client = AufzeichnenderClient(
+        {"text": "Ich bewerbe mich.\n\nMit freundlichen Grüßen\nAlain"}
+    )
+    with pytest.raises(llm.GenerationError, match="Grußformel"):
+        llm.generate_single_slot(
+            client, "test-model", _job(), "text", "Ich bewerbe mich gern.",
+            {"name": "Alain"}, {},
+        )

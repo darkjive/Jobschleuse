@@ -45,6 +45,15 @@ zugeschnitten auf diese Stelle und diese Firma.
 Regeln:
 - Formuliere nur aus Stellenanzeige, Bewerberprofil und den Beispieltexten.
 - Erfinde keine Fakten über die Firma, die nirgends stehen (z.B. keine Straße/PLZ, wenn nicht bekannt).
+- Erfinde ebenso wenig Angaben über den Bewerber. Abschlüsse, Titel, Zertifikate,
+  Arbeitgeber, Jahreszahlen und Qualifikationen ausschließlich aus dem
+  Bewerberprofil. Steht dort kein Studium, erwähne keines.
+- Fehlt dir eine Angabe, lass sie weg. Schreibe niemals Platzhalter wie
+  "Straße Hausnr", "PLZ Ort" oder "Musterstadt".
+- Die Beispieltexte geben nur Stil, Aufbau und Länge vor. Übernimm daraus keine
+  konkreten Angaben und ergänze nichts, was dort nicht vorkommt — endet ein
+  Beispieltext ohne Grußformel und Unterschrift, gehört auch in den neuen Text
+  keine; die Vorlage setzt beides selbst.
 - Ist kein Ansprechpartner bekannt, verwende die Anrede "Sehr geehrte Damen und Herren".
 - Verwende für Datums-Slots exakt das oben genannte heutige Datum.
 - Der Firmenname "{company}" muss in mindestens einem Slot-Text vorkommen.
@@ -86,6 +95,62 @@ def parse_response(text: str) -> dict:
         return json.loads(cleaned[anfang : ende + 1])
 
 
+# Kennt das Modell eine Angabe nicht, baut es gern die Form nach statt sie
+# wegzulassen. Diese Wendungen sind in einer fertigen Bewerbung immer falsch.
+PLATZHALTER = (
+    "straße hausnr",
+    "strasse hausnr",
+    "plz ort",
+    "musterstraße",
+    "musterstadt",
+    "max mustermann",
+    "vorname nachname",
+    "firmenname",
+    "lorem ipsum",
+)
+
+GRUSSFORMELN = (
+    "mit freundlichen grüßen",
+    "mit freundlichem gruß",
+    "mit besten grüßen",
+    "beste grüße",
+    "herzliche grüße",
+    "viele grüße",
+)
+
+
+def _platzhalter_in(text: str) -> list[str]:
+    unten = text.lower()
+    return [p for p in PLATZHALTER if p in unten]
+
+
+def _grussformel_in(text: str) -> str | None:
+    unten = text.lower()
+    return next((g for g in GRUSSFORMELN if g in unten), None)
+
+
+def pruefe_text(name: str, wert: str, beispiel: str) -> list[str]:
+    """Prüft einen einzelnen Slot-Text gegen seinen Beispieltext.
+
+    Beide Fälle stammen aus einer real erzeugten Bewerbung: eine erfundene
+    Anschrift und eine Grußformel, die die Vorlage selbst schon setzt.
+    """
+    probleme = []
+    gefunden = _platzhalter_in(wert)
+    if gefunden:
+        probleme.append(
+            f"Slot '{name}' enthält Platzhalter statt echter Angaben: {gefunden}. "
+            "Lass die Angabe lieber ganz weg."
+        )
+    gruss = _grussformel_in(wert)
+    if gruss and not _grussformel_in(beispiel):
+        probleme.append(
+            f"Slot '{name}' endet mit einer Grußformel ('{gruss}'), "
+            "der Beispieltext hat keine — die Vorlage setzt sie selbst."
+        )
+    return probleme
+
+
 def validate_values(values: dict, slots: dict[str, str], company: str) -> list[str]:
     problems: list[str] = []
     if set(values) != set(slots):
@@ -95,6 +160,9 @@ def validate_values(values: dict, slots: dict[str, str], company: str) -> list[s
     empty = [k for k, v in values.items() if not isinstance(v, str) or not v.strip()]
     if empty:
         problems.append(f"Leere Slots: {empty}")
+    for name, wert in values.items():
+        if isinstance(wert, str):
+            problems.extend(pruefe_text(name, wert, slots.get(name, "")))
     joined = " ".join(str(v) for v in values.values()).lower()
     core = _company_core(company).lower()
     if core not in joined:
@@ -193,6 +261,11 @@ zugeschnitten auf diese Stelle und diese Firma.
 Regeln:
 - Formuliere nur aus Stellenanzeige, Bewerberprofil und den vorhandenen Texten.
 - Erfinde keine Fakten über die Firma, die nirgends stehen.
+- Erfinde ebenso wenig Angaben über den Bewerber: Abschlüsse, Titel, Zertifikate
+  und Arbeitgeber ausschließlich aus dem Bewerberprofil.
+- Fehlt dir eine Angabe, lass sie weg — keine Platzhalter wie "Straße Hausnr".
+- Ergänze nichts, was der bisherige Text nicht hatte; endet er ohne Grußformel
+  und Unterschrift, gilt das auch für den neuen Text.
 - Wiederhole nicht wörtlich, was in den übrigen Blöcken schon steht.
 - Antworte NUR mit einem JSON-Objekt: {{"{slot}": "neuer Text"}}
   ohne weitere Erklärungen.
@@ -249,8 +322,12 @@ def generate_single_slot(
         else:
             value = values.get(slot)
             if isinstance(value, str) and value.strip():
-                return value
-            problem = f"Slot '{slot}' fehlte oder war leer"
+                maengel = pruefe_text(slot, value, beispiel)
+                if not maengel:
+                    return value
+                problem = "; ".join(maengel)
+            else:
+                problem = f"Slot '{slot}' fehlte oder war leer"
         prompt = build_single_slot_prompt(job, slot, beispiel, profile, andere) + (
             f"\n\nDein letzter Versuch hatte diesen Fehler: {problem}. Korrigiere ihn."
         )
