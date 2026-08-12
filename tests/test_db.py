@@ -1,3 +1,4 @@
+import threading
 from datetime import UTC, datetime
 
 import pytest
@@ -127,3 +128,22 @@ def test_set_status_rejects_generated(tmp_path):
     job_id = conn.execute("SELECT id FROM jobs").fetchone()[0]
     with pytest.raises(ValueError):
         db.set_status(conn, job_id, "generated")
+
+
+def test_verbindung_darf_thread_wechseln(tmp_path):
+    """FastAPI öffnet die Anfrage-Verbindung in einem Arbeits-Thread und
+    schließt sie in einem anderen. sqlite3 muss das zulassen, sonst endet
+    jede Anfrage im Traceback."""
+    conn = db.connect(tmp_path / "jobs.db")
+    fehler = []
+
+    def schliessen():
+        try:
+            conn.close()
+        except Exception as exc:
+            fehler.append(exc)
+
+    thread = threading.Thread(target=schliessen)
+    thread.start()
+    thread.join()
+    assert fehler == []

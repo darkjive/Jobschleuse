@@ -64,7 +64,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
 
 def connect(db_path: Path) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
+    # check_same_thread=False, weil FastAPI die Verbindung einer Anfrage in
+    # einem Arbeits-Thread öffnet und in einem anderen wieder schließt.
+    # Ungefährlich: jede Anfrage und jeder Hintergrundlauf bekommt eine eigene
+    # Verbindung, geteilt wird keine.
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute(SCHEMA)
