@@ -1,9 +1,12 @@
+import re
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from bewerbungs_pipeline import db
+from bewerbungs_pipeline import tasks as tasks_modul
 from bewerbungs_pipeline.config import Config
 from bewerbungs_pipeline.models import JobItem
 from bewerbungs_pipeline.web.app import create_app
@@ -127,3 +130,70 @@ def test_reject_setzt_status(tmp_path):
     client.post(f"/jobs/{job_id}/reject")
     conn = db.connect(cfg.db_path)
     assert db.get_job(conn, job_id)["status"] == "rejected"
+
+
+def _warte_auf_task(task_id: str, timeout: float = 5.0) -> tasks_modul.Task:
+    """Wartet, bis der Hintergrundlauf durch ist.
+
+    Notwendig, weil monkeypatch den Fake am Testende zurücknimmt: liefe der
+    Thread erst danach, ginge ein echter Netzaufruf an die Arbeitsagentur
+    raus — und Tests dürfen nicht ins Netz.
+    """
+    frist = time.monotonic() + timeout
+    while time.monotonic() < frist:
+        task = tasks_modul.get(task_id)
+        if task is not None and task.status != "läuft":
+            return task
+        time.sleep(0.01)
+    raise AssertionError(f"Vorgang {task_id} wurde nicht fertig")
+
+
+def test_suche_ausfuehren_schreibt_stellen(tmp_path, monkeypatch):
+    from bewerbungs_pipeline.web.routes import jobs as jobs_routen
+
+    cfg = make_cfg(tmp_path)
+    db.connect(cfg.db_path).close()
+
+    def fake_fetch(was, wo, umkreis=25, max_pages=5):
+        return [
+            JobItem(
+                title="Neue Stelle (m/w/d)",
+                company="Frisch GmbH",
+                location="Mainz",
+                url="https://example.org/job/neu",
+                source="arbeitsagentur",
+                description_md="Text.",
+                scraped_at=datetime.now(UTC),
+            )
+        ]
+
+    monkeypatch.setattr(jobs_routen.arbeitsagentur, "fetch_jobs", fake_fetch)
+    meldung = jobs_routen.suche_ausfuehren(cfg, "Entwickler", "Mainz", 25)
+
+    assert "1" in meldung
+    conn = db.connect(cfg.db_path)
+    assert any(r["title"] == "Neue Stelle (m/w/d)" for r in db.list_jobs(conn))
+
+
+def test_fetch_liefert_fortschritt_mit_task_id(tmp_path, monkeypatch):
+    from bewerbungs_pipeline.web.routes import jobs as jobs_routen
+
+    cfg = make_cfg(tmp_path)
+    monkeypatch.setattr(jobs_routen.arbeitsagentur, "fetch_jobs", lambda **kw: [])
+    client = TestClient(create_app(cfg))
+    antwort = client.post(
+        "/jobs/fetch", data={"was": "Entwickler", "wo": "Mainz", "umkreis": "25"}
+    )
+    assert antwort.status_code == 200
+    assert "/tasks/" in antwort.text
+
+    task_id = re.search(r"/tasks/(\w+)", antwort.text).group(1)
+    assert _warte_auf_task(task_id).status == "fertig"
+
+
+def test_task_status_unbekannt_meldet_deutsch(tmp_path):
+    cfg = make_cfg(tmp_path)
+    client = TestClient(create_app(cfg))
+    antwort = client.get("/tasks/gibtsnicht")
+    assert antwort.status_code == 404
+    assert "nicht gefunden" in antwort.text

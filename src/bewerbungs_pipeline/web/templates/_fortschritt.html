@@ -1,0 +1,14 @@
+{% if task.status == "läuft" %}
+  <p class="meldung"
+     hx-get="/tasks/{{ task.id }}?ziel={{ ziel|urlencode }}&ziel_element={{ ziel_element|urlencode }}"
+     hx-trigger="load delay:1s" hx-swap="outerHTML">
+    {{ task.beschreibung }} … läuft
+  </p>
+{% elif task.status == "fehler" %}
+  <p class="meldung meldung--fehler">{{ task.beschreibung }}: {{ task.meldung }}</p>
+{% else %}
+  <p class="meldung" {% if ziel %}hx-get="{{ ziel }}" hx-target="{{ ziel_element }}"
+     hx-trigger="load"{% endif %}>
+    {{ task.ergebnis or "Fertig." }}
+  </p>
+{% endif %}

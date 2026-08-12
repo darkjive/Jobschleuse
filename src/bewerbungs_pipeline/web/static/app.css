@@ -119,3 +119,19 @@ a { color: var(--accent); }
   font-size: 0.9rem;
   color: var(--text-dim);
 }
+
+.suchform { display: flex; gap: 0.5rem; flex: 1; }
+
+.suchform input {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+}
+
+.suchform input[type="search"] { flex: 1; min-width: 8rem; }
+.suchform input[type="number"] { width: 5rem; }
+
+#fortschritt:empty { display: none; }

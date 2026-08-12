@@ -1,5 +1,15 @@
 {% extends "basis.html" %}
 
+{% block kopfaktionen %}
+<form class="suchform" hx-post="/jobs/fetch" hx-target="#fortschritt">
+  <input type="search" name="was" placeholder="Was, z. B. Frontend Entwickler" required>
+  <input type="search" name="wo" placeholder="Wo, z. B. Darmstadt" required>
+  <input type="number" name="umkreis" value="50" min="0" max="200" aria-label="Umkreis in km">
+  <button class="knopf knopf--haupt" type="submit">Stellen suchen</button>
+</form>
+<div id="fortschritt"></div>
+{% endblock %}
+
 {% block inhalt %}
 <div class="spalten">
   <aside class="filter">
