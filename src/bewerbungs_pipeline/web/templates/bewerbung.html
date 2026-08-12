@@ -6,11 +6,17 @@
 <a class="knopf" href="/">Zurück zu den Stellen</a>
 <button class="knopf knopf--haupt" hx-post="/applications/{{ bewerbung.id }}/export"
         hx-target="#exportmeldung">Exportieren</button>
-<div id="exportmeldung"></div>
+<div id="exportmeldung" aria-live="polite"></div>
 {% endblock %}
 
 {% block inhalt %}
-<div class="bewerbung">
+{# Das Neuladen der Vorschau hängt bewusst hier und nicht am Slot-Formular:
+   der Swap ersetzt das Formular samt Attribut, htmx feuert afterRequest dann
+   am <ul> und der Handler liefe nie. Dieser Container überlebt jeden Swap,
+   das Ereignis blubbert zu ihm hoch. #}
+<div class="bewerbung"
+     hx-on::after-swap="if (event.target.classList.contains('slot'))
+                          document.getElementById('vorschau').contentWindow.location.reload()">
   <section class="bewerbung__editor">
     <h2>{{ stelle.title }} — {{ stelle.company }}</h2>
     <ul class="slots">

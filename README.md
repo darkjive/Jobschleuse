@@ -36,3 +36,13 @@ Spec: `docs/specs/2026-07-08-bewerbungs-pipeline-design.md`.
     uv run jobs pick 3
     uv run jobs generate 3      # → out/<firma>/index.html
 
+## Weboberfläche
+
+    uv run jobs serve            # → http://127.0.0.1:8765
+
+Stellen sichten und auswählen, Bewerbung erzeugen, einzelne Textblöcke
+nachbearbeiten oder neu erzeugen lassen, Vorschau ansehen, exportieren.
+Läuft ausschließlich lokal, ohne Login.
+
+Das CLI bleibt unverändert nutzbar.
+

@@ -55,7 +55,13 @@ def erzeugen(request: Request, job_id: int = Form(...)):
     return templates.TemplateResponse(
         request,
         "_fortschritt.html",
-        {"task": tasks.get(task_id), "ziel": "", "ziel_element": ""},
+        {
+            "task": tasks.get(task_id),
+            # Nach dem Lauf das Stellendetail neu laden: dort steht dann der
+            # Knopf „Bewerbung öffnen“ statt „Bewerbung erstellen“.
+            "ziel": f"/jobs/{job_id}",
+            "ziel_element": "#stellendetail",
+        },
     )
 
 

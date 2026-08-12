@@ -106,7 +106,8 @@ a { color: var(--accent); }
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-muted);
+  /* --text-muted erreicht auf --bg nur 2.69:1 — zu wenig fuer WCAG AA. */
+  color: var(--text-dim);
 }
 
 .stelle__status--selected { color: var(--accent); }
@@ -159,8 +160,9 @@ a { color: var(--accent); }
 .slot__kopf label { font-family: var(--font-mono); font-size: 0.8rem; }
 .slot__kopf .knopf { margin-left: auto; }
 
-.slot__quelle { font-size: 0.72rem; color: var(--text-muted); }
-.slot__quelle--llm { color: var(--accent-dim); }
+/* Beide Farben lagen unter 4.5:1 auf --bg-elevated (2.45 bzw. 3.89). */
+.slot__quelle { font-size: 0.72rem; color: var(--text-dim); }
+.slot__quelle--llm { color: var(--accent); }
 
 .slot textarea {
   width: 100%;

@@ -1,4 +1,6 @@
 import json
+import re
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -181,3 +183,25 @@ def test_vorschau_schreibt_assetpfade_um(tmp_path):
     client = TestClient(create_app(cfg))
     antwort = client.get(f"/applications/{app_id}/preview")
     assert "/template-assets/styles.css" in antwort.text
+
+
+def test_erzeugen_zeigt_keine_rohe_id_und_laedt_stelle_nach(tmp_path, monkeypatch):
+    from bewerbungs_pipeline import tasks as tasks_modul
+    from bewerbungs_pipeline.web.routes import applications as app_routen
+
+    cfg = make_cfg(tmp_path)
+    job_id = seed(cfg)
+    monkeypatch.setattr(app_routen, "make_client", lambda *a, **k: FakeClient(GOOD))
+    client = TestClient(create_app(cfg))
+    antwort = client.post("/applications", data={"job_id": str(job_id)})
+    assert antwort.status_code == 200
+    assert f"/jobs/{job_id}" in antwort.text
+
+    task_id = re.search(r"/tasks/(\w+)", antwort.text).group(1)
+    frist = time.monotonic() + 5.0
+    while time.monotonic() < frist and tasks_modul.get(task_id).status == "läuft":
+        time.sleep(0.01)
+    assert tasks_modul.get(task_id).status == "fertig"
+
+    fertig = client.get(f"/tasks/{task_id}", params={"ziel": f"/jobs/{job_id}"})
+    assert "Fertig." in fertig.text
