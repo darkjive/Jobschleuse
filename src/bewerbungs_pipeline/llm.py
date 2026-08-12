@@ -75,7 +75,15 @@ def parse_response(text: str) -> dict:
     if cleaned.startswith("```"):
         cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else ""
         cleaned = cleaned.rsplit("```", 1)[0]
-    return json.loads(cleaned)
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        # Manche Modelle schreiben Fließtext um das Objekt herum. Der äußerste
+        # Block von { bis } ist dann der einzige Kandidat.
+        anfang, ende = cleaned.find("{"), cleaned.rfind("}")
+        if anfang == -1 or ende <= anfang:
+            raise
+        return json.loads(cleaned[anfang : ende + 1])
 
 
 def validate_values(values: dict, slots: dict[str, str], company: str) -> list[str]:
@@ -94,18 +102,52 @@ def validate_values(values: dict, slots: dict[str, str], company: str) -> list[s
     return problems
 
 
+def slot_schema(namen) -> dict:
+    """Antwortschema für die gewünschten Slots.
+
+    Nur „irgendein JSON“ zu verlangen genügt nicht: die Grammatik lässt das
+    Modell das Objekt dann früh schließen, und es fehlen Slots. Das Schema
+    schreibt jeden Namen als Pflichtfeld vor.
+    """
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "slots",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {name: {"type": "string"} for name in namen},
+                "required": list(namen),
+                "additionalProperties": False,
+            },
+        },
+    }
+
+
+def _auszug(text: str, zeichen: int = 200) -> str:
+    """Kürzt eine Modellantwort auf ein Maß, das in eine Meldung passt."""
+    knapp = " ".join(text.split())
+    return knapp if len(knapp) <= zeichen else knapp[:zeichen] + " …"
+
+
 def generate_slot_texts(
     client, model: str, job: JobItem, slots: dict[str, str], profile: dict
 ) -> dict[str, str]:
     prompt = build_prompt(job, slots, profile)
     last_problems: list[str] = []
+    letzte_antwort = ""
     for _attempt in range(2):
         response = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.4,
+            # Ohne erzwungenes Schema schließen lokale Modelle deutsche
+            # Anführungszeichen gern mit einem ASCII-" und brechen damit den
+            # umgebenden JSON-String auf.
+            response_format=slot_schema(slots),
         )
         text = response.choices[0].message.content or ""
+        letzte_antwort = text
         try:
             values = parse_response(text)
         except (json.JSONDecodeError, IndexError):
@@ -117,7 +159,10 @@ def generate_slot_texts(
         prompt = build_prompt(job, slots, profile) + (
             f"\n\nDein letzter Versuch hatte diese Fehler: {last_problems}. Korrigiere sie."
         )
-    raise GenerationError(f"LLM-Ausgabe nach 2 Versuchen ungültig: {last_problems}")
+    raise GenerationError(
+        f"LLM-Ausgabe nach 2 Versuchen ungültig: {last_problems}. "
+        f"Antwort war: {_auszug(letzte_antwort)}"
+    )
 
 
 SINGLE_SLOT_PROMPT = """Du überarbeitest EINEN Textblock einer deutschen Bewerbung.
@@ -187,13 +232,16 @@ def generate_single_slot(
     """
     prompt = build_single_slot_prompt(job, slot, beispiel, profile, andere)
     problem = ""
+    letzte_antwort = ""
     for _attempt in range(2):
         response = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.4,
+            response_format=slot_schema([slot]),
         )
         text = response.choices[0].message.content or ""
+        letzte_antwort = text
         try:
             values = parse_response(text)
         except (json.JSONDecodeError, IndexError):
@@ -206,4 +254,7 @@ def generate_single_slot(
         prompt = build_single_slot_prompt(job, slot, beispiel, profile, andere) + (
             f"\n\nDein letzter Versuch hatte diesen Fehler: {problem}. Korrigiere ihn."
         )
-    raise GenerationError(f"LLM-Ausgabe nach 2 Versuchen ungültig: {problem}")
+    raise GenerationError(
+        f"LLM-Ausgabe nach 2 Versuchen ungültig: {problem}. "
+        f"Antwort war: {_auszug(letzte_antwort)}"
+    )

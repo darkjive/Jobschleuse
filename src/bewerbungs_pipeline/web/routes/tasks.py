@@ -13,6 +13,7 @@ router = APIRouter()
 # wird verworfen: sonst ließe sich das Fragment dazu bringen, fremdes HTML
 # nachzuladen und in die Seite zu setzen — htmx führt darin auch Skripte aus.
 ZIEL_ELEMENT = re.compile(r"#[A-Za-z0-9_-]+")
+ZIEL_SWAP = {"innerHTML", "outerHTML"}
 
 
 def _sicheres_ziel(ziel: str) -> str:
@@ -23,8 +24,18 @@ def _sicheres_ziel_element(ziel_element: str) -> str:
     return ziel_element if ZIEL_ELEMENT.fullmatch(ziel_element) else ""
 
 
+def _sicherer_ziel_swap(ziel_swap: str) -> str:
+    return ziel_swap if ziel_swap in ZIEL_SWAP else "innerHTML"
+
+
 @router.get("/tasks/{task_id}", response_class=HTMLResponse)
-def status(request: Request, task_id: str, ziel: str = "", ziel_element: str = ""):
+def status(
+    request: Request,
+    task_id: str,
+    ziel: str = "",
+    ziel_element: str = "",
+    ziel_swap: str = "",
+):
     task = tasks_modul.get(task_id)
     if task is None:
         return HTMLResponse(
@@ -38,5 +49,6 @@ def status(request: Request, task_id: str, ziel: str = "", ziel_element: str = "
             "task": task,
             "ziel": _sicheres_ziel(ziel),
             "ziel_element": _sicheres_ziel_element(ziel_element),
+            "ziel_swap": _sicherer_ziel_swap(ziel_swap),
         },
     )

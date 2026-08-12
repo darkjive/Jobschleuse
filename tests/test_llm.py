@@ -158,3 +158,67 @@ def test_generate_single_slot_rejects_empty_answer():
             client, "test-model", job, "motivation", "alt", {"name": "Alain"}, {}
         )
     assert client.calls == 2
+
+
+class AufzeichnenderClient:
+    """Merkt sich die Aufrufparameter, damit der Test sie prüfen kann."""
+
+    def __init__(self, payload: dict):
+        self.aufrufe = []
+        message = SimpleNamespace(content=json.dumps(payload, ensure_ascii=False))
+        antwort = SimpleNamespace(choices=[SimpleNamespace(message=message)])
+
+        def create(**kw):
+            self.aufrufe.append(kw)
+            return antwort
+
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=create))
+
+
+def _job() -> JobItem:
+    return JobItem(
+        title="Servicetechniker (m/w/d)",
+        company="Beispiel AG",
+        location="Frankfurt am Main",
+        url="https://example.org/job/1",
+        source="arbeitsagentur",
+        description_md="Wir suchen Verstärkung.",
+        scraped_at=datetime.now(UTC),
+    )
+
+
+def test_generate_slot_texts_fordert_alle_slots_als_schema_an():
+    """Ohne erzwungenes Schema liefern lokale Modelle kaputte Strings oder
+    lassen Slots weg — beides gemessen an ornith:latest."""
+    slots = {"firma": "Muster GmbH", "motivation": "Beispiel"}
+    client = AufzeichnenderClient({"firma": "Beispiel AG", "motivation": "Text"})
+    llm.generate_slot_texts(client, "test-model", _job(), slots, {"name": "Alain"})
+    schema = client.aufrufe[0]["response_format"]["json_schema"]["schema"]
+    assert sorted(schema["required"]) == ["firma", "motivation"]
+    assert schema["additionalProperties"] is False
+
+
+def test_generate_single_slot_fordert_nur_seinen_slot_an():
+    client = AufzeichnenderClient({"motivation": "Neuer Text."})
+    llm.generate_single_slot(
+        client, "test-model", _job(), "motivation", "alt", {"name": "Alain"}, {}
+    )
+    schema = client.aufrufe[0]["response_format"]["json_schema"]["schema"]
+    assert schema["required"] == ["motivation"]
+
+
+def test_parse_response_findet_json_in_prosa():
+    text = 'Hier ist das Ergebnis:\n{"firma": "Beispiel AG"}\nViel Erfolg!'
+    assert llm.parse_response(text) == {"firma": "Beispiel AG"}
+
+
+def test_generationerror_zeigt_die_rohantwort():
+    """Ohne Auszug der Antwort lässt sich ein Fehlschlag nicht diagnostizieren."""
+    slots = {"firma": "Muster GmbH"}
+    client = AufzeichnenderClient({})
+    client.chat.completions.create = lambda **kw: SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content='{"firma": "kaputt""}'))]
+    )
+    with pytest.raises(llm.GenerationError) as fehler:
+        llm.generate_slot_texts(client, "test-model", _job(), slots, {})
+    assert "kaputt" in str(fehler.value)

@@ -205,3 +205,51 @@ def test_erzeugen_zeigt_keine_rohe_id_und_laedt_stelle_nach(tmp_path, monkeypatc
 
     fertig = client.get(f"/tasks/{task_id}", params={"ziel": f"/jobs/{job_id}"})
     assert "Fertig." in fertig.text
+
+
+def test_slot_fragment_einzeln_abrufbar(tmp_path):
+    """Nach „Neu erzeugen“ muss der Block nachgeladen werden können —
+    sonst zeigt das Textfeld weiter den alten Stand."""
+    cfg = make_cfg(tmp_path)
+    app_id = bewerbung_anlegen(cfg, seed(cfg))
+    client = TestClient(create_app(cfg))
+    antwort = client.get(f"/applications/{app_id}/slots/motivation")
+    assert antwort.status_code == 200
+    assert "Wartung und Service sind mein Feld." in antwort.text
+
+
+def test_slot_fragment_unbekannt_meldet_deutsch(tmp_path):
+    cfg = make_cfg(tmp_path)
+    app_id = bewerbung_anlegen(cfg, seed(cfg))
+    client = TestClient(create_app(cfg))
+    antwort = client.get(f"/applications/{app_id}/slots/gibtsnicht")
+    assert antwort.status_code == 404
+    assert "Unbekannter Slot" in antwort.text
+
+
+def test_slot_neu_verweist_auf_das_slot_fragment(tmp_path, monkeypatch):
+    from bewerbungs_pipeline.web.routes import applications as app_routen
+
+    cfg = make_cfg(tmp_path)
+    app_id = bewerbung_anlegen(cfg, seed(cfg))
+    monkeypatch.setattr(
+        app_routen, "make_client", lambda *a, **k: FakeClient({"motivation": "Neu."})
+    )
+    client = TestClient(create_app(cfg))
+    antwort = client.post(f"/applications/{app_id}/slots/motivation/regenerate")
+    assert antwort.status_code == 200
+    assert f"/applications/{app_id}/slots/motivation" in antwort.text
+    assert "slot-motivation" in antwort.text
+
+
+def test_fehlermeldung_maskiert_html(tmp_path):
+    """Der Slot-Name stammt aus dem Pfad und darf nicht roh im HTML landen."""
+    cfg = make_cfg(tmp_path)
+    app_id = bewerbung_anlegen(cfg, seed(cfg))
+    client = TestClient(create_app(cfg))
+    antwort = client.put(
+        f"/applications/{app_id}/slots/<b>kaputt", data={"value": "x"}
+    )
+    assert antwort.status_code == 400
+    assert "<b>kaputt" not in antwort.text
+    assert "&lt;b&gt;kaputt" in antwort.text

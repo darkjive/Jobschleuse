@@ -211,3 +211,28 @@ def test_task_status_verwirft_fremdes_ziel(tmp_path):
     assert antwort.status_code == 200
     assert "boese.example" not in antwort.text
     assert "hx-get" not in antwort.text
+
+
+def test_task_status_verwirft_fremden_swap(tmp_path):
+    cfg = make_cfg(tmp_path)
+    task_id = tasks_modul.start("Testlauf", lambda: "fertig")
+    _warte_auf_task(task_id)
+    client = TestClient(create_app(cfg))
+    antwort = client.get(
+        f"/tasks/{task_id}",
+        params={"ziel": "/jobs", "ziel_element": "#stellenliste", "ziel_swap": "delete"},
+    )
+    assert 'hx-swap="innerHTML"' in antwort.text
+    assert "delete" not in antwort.text
+
+
+def test_task_status_reicht_outerhtml_durch(tmp_path):
+    cfg = make_cfg(tmp_path)
+    task_id = tasks_modul.start("Testlauf", lambda: "fertig")
+    _warte_auf_task(task_id)
+    client = TestClient(create_app(cfg))
+    antwort = client.get(
+        f"/tasks/{task_id}",
+        params={"ziel": "/x", "ziel_element": "#slot-titel", "ziel_swap": "outerHTML"},
+    )
+    assert 'hx-swap="outerHTML"' in antwort.text
