@@ -1,9 +1,11 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
 import pytest
 
+from bewerbungs_pipeline.models import JobItem
 from bewerbungs_pipeline.sources import arbeitsagentur
 
 FIXTURE = Path(__file__).parent / "fixtures" / "aa_search_response.json"
@@ -123,3 +125,97 @@ def test_fetch_details_wirft_bei_serverfehler(monkeypatch):
     _client_mit(lambda request: httpx.Response(500), monkeypatch)
     with pytest.raises(httpx.HTTPStatusError):
         arbeitsagentur.fetch_details("kaputt-1-S")
+
+
+def make_item(**overrides):
+    basis = dict(
+        title="Mechatroniker (m/w/d)",
+        company="AC Motoren GmbH",
+        location="Eppertshausen",
+        url="https://www.arbeitsagentur.de/jobsuche/jobdetail/10001-1",
+        source="arbeitsagentur",
+        source_ref="10001-1",
+        scraped_at=datetime.now(UTC),
+    )
+    basis.update(overrides)
+    return JobItem(**basis)
+
+
+def test_enrich_uebernimmt_detailfelder(monkeypatch):
+    nutzlast = json.loads(DETAIL_FIXTURE.read_text())
+    monkeypatch.setattr(arbeitsagentur, "fetch_details", lambda refnr: nutzlast)
+
+    item = arbeitsagentur.enrich([make_item()])[0]
+    assert item.source_partner == "XING GmbH & Co. KG"
+    assert item.employer_kind == "vermittler"
+    assert item.education == "MITTLERE_REIFE_MITTLERER_BILDUNGSABSCHLUSS"
+    assert item.employer_hash == "fJsK89VjMAftJUvCwcatHyz"
+    assert item.street == "Lyoner Str. 12"
+    assert item.description_md.startswith("Wir suchen")
+
+
+def test_enrich_verwirft_verschwundene(monkeypatch):
+    monkeypatch.setattr(arbeitsagentur, "fetch_details", lambda refnr: None)
+    assert arbeitsagentur.enrich([make_item()]) == []
+
+
+def test_enrich_behaelt_stelle_bei_netzfehler(monkeypatch):
+    def kaputt(refnr):
+        raise httpx.ConnectError("kein Netz")
+
+    monkeypatch.setattr(arbeitsagentur, "fetch_details", kaputt)
+    ergebnis = arbeitsagentur.enrich([make_item()])
+    assert len(ergebnis) == 1
+    assert ergebnis[0].source_partner is None
+    assert ergebnis[0].gone_at is None
+
+
+def test_enrich_ohne_referenznummer(monkeypatch):
+    def darf_nicht_aufgerufen_werden(refnr):
+        raise AssertionError("ohne source_ref darf kein Abruf laufen")
+
+    monkeypatch.setattr(arbeitsagentur, "fetch_details", darf_nicht_aufgerufen_werden)
+    assert len(arbeitsagentur.enrich([make_item(source_ref=None)])) == 1
+
+
+def test_check_alive_meldet_nur_404(monkeypatch):
+    def antwort(refnr):
+        if refnr == "weg-1":
+            return None
+        if refnr == "kaputt-1":
+            raise httpx.ConnectError("kein Netz")
+        return {"stellenangebotsBeschreibung": "da"}
+
+    monkeypatch.setattr(arbeitsagentur, "fetch_details", antwort)
+    assert arbeitsagentur.check_alive(["lebt-1", "weg-1", "kaputt-1"]) == {"weg-1"}
+
+
+def test_fetch_jobs_reicht_suchparameter_durch(monkeypatch):
+    gesehen = {}
+
+    def falsche_seite(client, was, wo, umkreis, page, extra):
+        gesehen.update(extra)
+        return {"ergebnisliste": []}
+
+    monkeypatch.setattr(arbeitsagentur, "_search_page", falsche_seite)
+    monkeypatch.setattr(arbeitsagentur, "enrich", lambda items: items)
+
+    arbeitsagentur.fetch_jobs(
+        was="Frontend", wo="Darmstadt", veroeffentlicht_seit=7,
+        ohne_zeitarbeit=True, nur_arbeit=True,
+    )
+    assert gesehen == {"veroeffentlichtseit": 7, "zeitarbeit": "false", "angebotsart": 1}
+
+
+def test_fetch_jobs_ohne_zusatzparameter(monkeypatch):
+    gesehen = {}
+
+    def falsche_seite(client, was, wo, umkreis, page, extra):
+        gesehen["extra"] = extra
+        return {"ergebnisliste": []}
+
+    monkeypatch.setattr(arbeitsagentur, "_search_page", falsche_seite)
+    monkeypatch.setattr(arbeitsagentur, "enrich", lambda items: items)
+
+    arbeitsagentur.fetch_jobs(was="Frontend", wo="Darmstadt")
+    assert gesehen["extra"] == {}
