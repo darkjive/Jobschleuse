@@ -91,12 +91,20 @@ def fetch_jobs(was: str, wo: str, umkreis: int = 25, max_pages: int = 5) -> list
     return items
 
 
-def fetch_details(refnr: str) -> str:
+def fetch_details(refnr: str) -> dict | None:
+    """Vollständiges Detail-Payload; ``None``, wenn die Anzeige weg ist.
+
+    HTTP 404 heisst bei dieser Schnittstelle zuverlässig „nicht mehr
+    vorhanden". Alle anderen Fehler — Zeitüberschreitung, Serverfehler,
+    Verbindungsabbruch — werden geworfen und dürfen nicht als „weg"
+    gedeutet werden.
+    """
     encoded = base64.b64encode(refnr.encode()).decode()
     with httpx.Client() as client:
         response = client.get(
             f"{BASE_URL}/pc/v4/jobdetails/{encoded}", headers=HEADERS, timeout=TIMEOUT
         )
+        if response.status_code == 404:
+            return None
         response.raise_for_status()
-        payload = response.json()
-    return payload.get("stellenangebotsBeschreibung") or ""
+        return response.json()

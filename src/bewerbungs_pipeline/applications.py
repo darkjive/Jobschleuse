@@ -35,10 +35,17 @@ def ensure_description(conn, row) -> sqlite3.Row:
     too_short = len(row["description_md"]) < MIN_DESCRIPTION_CHARS
     if too_short and row["source"] == "arbeitsagentur" and row["source_ref"]:
         try:
-            text = fetch_details(row["source_ref"])
+            payload = fetch_details(row["source_ref"])
         except Exception as exc:  # Netzfehler: mit Kurzbeschreibung weiterarbeiten
             print(f"Warnung: Details nicht abrufbar ({exc}).", file=sys.stderr)
             return row
+        if payload is None:
+            # Anzeige ist bei der Quelle verschwunden — vermerken und mit dem
+            # arbeiten, was gespeichert ist.
+            dbmod.mark_gone(conn, {row["source_ref"]})
+            print("Warnung: Anzeige ist bei der Quelle nicht mehr vorhanden.", file=sys.stderr)
+            return dbmod.get_job(conn, row["id"])
+        text = payload.get("stellenangebotsBeschreibung") or ""
         if text:
             dbmod.update_description(conn, row["id"], text)
             return dbmod.get_job(conn, row["id"])

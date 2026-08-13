@@ -1,9 +1,13 @@
 import json
 from pathlib import Path
 
+import httpx
+import pytest
+
 from bewerbungs_pipeline.sources import arbeitsagentur
 
 FIXTURE = Path(__file__).parent / "fixtures" / "aa_search_response.json"
+DETAIL_FIXTURE = Path(__file__).parent / "fixtures" / "aa_detail_response.json"
 
 
 def load_payload() -> dict:
@@ -90,3 +94,32 @@ def test_parse_jobs_ohne_faktenfelder():
     assert item.contract is None
     assert item.distance_km is None
     assert item.external_host is None
+
+
+def _client_mit(handler, monkeypatch):
+    """Ersetzt httpx.Client durch einen Transport, der handler befragt."""
+    transport = httpx.MockTransport(handler)
+    original = httpx.Client
+    monkeypatch.setattr(
+        httpx, "Client", lambda *a, **kw: original(*a, transport=transport, **kw)
+    )
+
+
+def test_fetch_details_liefert_payload(monkeypatch):
+    nutzlast = json.loads(DETAIL_FIXTURE.read_text())
+    _client_mit(lambda request: httpx.Response(200, json=nutzlast), monkeypatch)
+
+    payload = arbeitsagentur.fetch_details("10001-1000012345-S")
+    assert payload["allianzpartnerName"] == "XING GmbH & Co. KG"
+    assert payload["stellenangebotsBeschreibung"].startswith("Wir suchen")
+
+
+def test_fetch_details_gibt_none_bei_404(monkeypatch):
+    _client_mit(lambda request: httpx.Response(404), monkeypatch)
+    assert arbeitsagentur.fetch_details("weg-1-S") is None
+
+
+def test_fetch_details_wirft_bei_serverfehler(monkeypatch):
+    _client_mit(lambda request: httpx.Response(500), monkeypatch)
+    with pytest.raises(httpx.HTTPStatusError):
+        arbeitsagentur.fetch_details("kaputt-1-S")

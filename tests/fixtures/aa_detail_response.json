@@ -1,0 +1,24 @@
+{
+  "stellenangebotsart": "ARBEIT",
+  "stellenangebotsTitel": "Mechatroniker (m/w/d)",
+  "stellenangebotsBeschreibung": "Wir suchen zum naechstmoeglichen Zeitpunkt eine Mechatronikerin oder einen Mechatroniker fuer unsere Fertigung. Sie montieren, pruefen und warten Antriebseinheiten.",
+  "firma": "AC Motoren GmbH",
+  "referenznummer": "10001-1000012345-S",
+  "istArbeitnehmerUeberlassung": false,
+  "istPrivateArbeitsvermittlung": true,
+  "istBetreut": true,
+  "allianzpartnerName": "XING GmbH & Co. KG",
+  "allianzpartnerUrl": "www.xing.com",
+  "arbeitgeberKundennummerHash": "fJsK89VjMAftJUvCwcatHyz",
+  "geforderterBildungsabschluss": "MITTLERE_REIFE_MITTLERER_BILDUNGSABSCHLUSS",
+  "stellenlokationen": [
+    {
+      "adresse": {
+        "strasse": "Lyoner Str.",
+        "hausnummer": "12",
+        "plz": "60528",
+        "ort": "Frankfurt am Main"
+      }
+    }
+  ]
+}
