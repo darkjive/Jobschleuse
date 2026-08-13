@@ -57,3 +57,36 @@ def test_parse_jobs_handles_malformed_date():
     assert items[0].title == "Test Job"
     assert items[0].company == "Test Company"
     assert items[0].posted_at is None
+
+
+def test_parse_jobs_liest_faktenfelder():
+    first = arbeitsagentur.parse_jobs(load_payload())[0]
+    assert first.job_kind == "ARBEIT"
+    assert first.salary == "19,78–26,00 €/h"
+    assert first.worktime == "Vollzeit"
+    assert first.contract == "unbefristet"
+    assert first.distance_km == 42
+    assert first.start_date.isoformat() == "2026-09-01"
+    assert first.changed_at.isoformat().startswith("2026-08-10T18:05:28")
+    assert first.homeoffice is None
+    assert first.plz
+
+
+def test_parse_jobs_setzt_external_host():
+    second = arbeitsagentur.parse_jobs(load_payload())[1]
+    assert second.external_host == "karriere.beispiel.de"
+
+
+def test_parse_jobs_ohne_faktenfelder():
+    """Eine duenn belegte Anzeige laeuft durch und laesst die Felder leer."""
+    payload = {
+        "ergebnisliste": [
+            {"stellenangebotsTitel": "Duenn", "firma": "X", "referenznummer": "1-2-S"}
+        ]
+    }
+    item = arbeitsagentur.parse_jobs(payload)[0]
+    assert item.salary is None
+    assert item.worktime is None
+    assert item.contract is None
+    assert item.distance_km is None
+    assert item.external_host is None

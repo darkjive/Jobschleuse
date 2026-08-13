@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime
 import httpx
 
 from ..models import JobItem
+from . import normalisierung
 
 BASE_URL = "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service"
 HEADERS = {"X-API-KEY": "jobboerse-jobsuche"}
@@ -21,11 +22,22 @@ def _parse_date(value: str | None) -> date | None:
         return None
 
 
+def _parse_datetime(value: str | None) -> datetime | None:
+    """Parst den Änderungszeitstempel; die Quelle liefert ihn ohne Zeitzone."""
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
 def parse_jobs(payload: dict) -> list[JobItem]:
     items: list[JobItem] = []
     for entry in payload.get("ergebnisliste", []):
         refnr = entry.get("referenznummer")
-        url = entry.get("externeURL") or (DETAIL_PAGE.format(refnr=refnr) if refnr else None)
+        externe_url = entry.get("externeURL")
+        url = externe_url or (DETAIL_PAGE.format(refnr=refnr) if refnr else None)
         if not url:
             continue
         posted = entry.get("datumErsteVeroeffentlichung")
@@ -41,6 +53,17 @@ def parse_jobs(payload: dict) -> list[JobItem]:
                 source_ref=refnr,
                 posted_at=_parse_date(posted),
                 scraped_at=datetime.now(UTC),
+                job_kind=entry.get("stellenangebotsart"),
+                external_host=normalisierung.host(externe_url),
+                homeoffice=entry.get("homeofficetyp")
+                or ("moeglich" if entry.get("homeofficemoeglich") else None),
+                salary=normalisierung.gehalt(entry),
+                contract=normalisierung.vertrag(entry),
+                worktime=normalisierung.arbeitszeit(entry),
+                distance_km=entry.get("entfernung"),
+                start_date=_parse_date((entry.get("eintrittszeitraum") or {}).get("von")),
+                changed_at=_parse_datetime(entry.get("aenderungsdatum")),
+                plz=(adresse.get("plz") or "").strip() or None,
             )
         )
     return items
