@@ -236,8 +236,12 @@ schmal statt eine Reihe von „unbekannt" zu zeigen.
 
 **Nicht mehr verfügbar:** Zeilen mit gesetztem `gone_at` werden ausgegraut
 und tragen das Kennzeichen `nicht mehr verfügbar`. Sie sind standardmäßig
-ausgeblendet; ein zusätzlicher Wert im Statusfilter macht sie sichtbar. Die
-Stelle bleibt vollständig erhalten, samt eventuell erzeugter Bewerbung.
+ausgeblendet; ein eigenes Häkchen „auch verschwundene zeigen" blendet sie
+ein. Bewusst kein zusätzlicher Wert im Statusfilter: Status (neu /
+ausgewählt / aussortiert) und Verfügbarkeit sind unabhängig voneinander — eine
+ausgewählte Stelle kann verschwinden, und das darf ihren Status nicht
+überschreiben. Die Stelle bleibt vollständig erhalten, samt eventuell
+erzeugter Bewerbung.
 
 **Detailansicht** (`_stellendetail.html`) zeigt zusätzlich Straße und PLZ,
 Eintrittstermin, geforderten Abschluss, Vertragsdauer, Arbeitszeit — als
