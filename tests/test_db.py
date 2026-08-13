@@ -1,3 +1,4 @@
+import sqlite3
 import threading
 from datetime import UTC, date, datetime
 
@@ -178,3 +179,84 @@ def test_jobitem_nimmt_neue_felder_an():
     )
     assert item.distance_km == 42
     assert item.start_date.isoformat() == "2026-09-01"
+
+
+def test_migration_erhaelt_bestandsdaten(tmp_path):
+    """Eine Datenbank im alten Schema bekommt die neuen Spalten, ohne Zeilen zu verlieren."""
+    pfad = tmp_path / "alt.db"
+    alt = sqlite3.connect(pfad)
+    alt.execute(
+        """CREATE TABLE jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            url TEXT NOT NULL UNIQUE, dedupe_hash TEXT NOT NULL UNIQUE,
+            source_ref TEXT, title TEXT NOT NULL, company TEXT NOT NULL,
+            company_website TEXT, location TEXT NOT NULL, source TEXT NOT NULL,
+            posted_at TEXT, contact_name TEXT, contact_email TEXT,
+            description_md TEXT NOT NULL DEFAULT '', scraped_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'new')"""
+    )
+    alt.execute(
+        "INSERT INTO jobs (url, dedupe_hash, title, company, location, source, scraped_at)"
+        " VALUES ('http://a', 'hash1', 'Alt', 'Firma', 'Ort', 'arbeitsagentur', '2026-07-01T00:00:00+00:00')"
+    )
+    alt.commit()
+    alt.close()
+
+    conn = db.connect(pfad)
+    zeilen = conn.execute("SELECT * FROM jobs").fetchall()
+    assert len(zeilen) == 1
+    assert zeilen[0]["title"] == "Alt"
+    assert zeilen[0]["gone_at"] is None
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+    conn.close()
+
+
+def test_migration_ist_wiederholbar(tmp_path):
+    """Zweimal verbinden darf nicht an bereits vorhandenen Spalten scheitern."""
+    pfad = tmp_path / "zweimal.db"
+    db.connect(pfad).close()
+    conn = db.connect(pfad)
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+    conn.close()
+
+
+def test_insert_job_schreibt_neue_spalten(conn):
+    db.insert_job(conn, make_item(source_partner="XING GmbH & Co. KG", employer_kind="vermittler", distance_km=42))
+    zeile = conn.execute("SELECT * FROM jobs").fetchone()
+    assert zeile["source_partner"] == "XING GmbH & Co. KG"
+    assert zeile["employer_kind"] == "vermittler"
+    assert zeile["distance_km"] == 42
+
+
+def test_row_to_item_liest_neue_spalten(conn):
+    db.insert_job(conn, make_item(source_partner="XING GmbH & Co. KG", salary="ab 19,78 €/h"))
+    item = db.row_to_item(conn.execute("SELECT * FROM jobs").fetchone())
+    assert item.source_partner == "XING GmbH & Co. KG"
+    assert item.salary == "ab 19,78 €/h"
+
+
+def test_offene_referenzen_und_mark_gone(conn):
+    db.insert_job(conn, make_item(url="http://a", source_ref="ref-a"))
+    db.insert_job(conn, make_item(url="http://b", source_ref="ref-b", title="Zweiter"))
+    db.insert_job(conn, make_item(url="http://c", source_ref=None, title="Dritter"))
+
+    assert sorted(db.offene_referenzen(conn)) == ["ref-a", "ref-b"]
+
+    assert db.mark_gone(conn, {"ref-a"}) == 1
+    assert db.offene_referenzen(conn) == ["ref-b"]
+    zeile = conn.execute("SELECT gone_at FROM jobs WHERE source_ref = 'ref-a'").fetchone()
+    assert zeile["gone_at"] is not None
+
+
+def test_mark_gone_ohne_referenzen(conn):
+    db.insert_job(conn, make_item(source_ref="ref-a"))
+    assert db.mark_gone(conn, set()) == 0
+
+
+def test_suche_jobs_blendet_verschwundene_aus(conn):
+    db.insert_job(conn, make_item(url="http://a", source_ref="ref-a"))
+    db.insert_job(conn, make_item(url="http://b", source_ref="ref-b", title="Zweiter"))
+    db.mark_gone(conn, {"ref-a"})
+
+    assert len(db.suche_jobs(conn)) == 1
+    assert len(db.suche_jobs(conn, mit_verschwundenen=True)) == 2

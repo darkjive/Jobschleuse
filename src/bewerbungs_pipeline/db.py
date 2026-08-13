@@ -1,13 +1,13 @@
 import hashlib
 import sqlite3
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from .models import JobItem
 
 STATUSES = {"new", "selected", "rejected"}
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -25,9 +25,45 @@ CREATE TABLE IF NOT EXISTS jobs (
     contact_email TEXT,
     description_md TEXT NOT NULL DEFAULT '',
     scraped_at TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'new'
+    status TEXT NOT NULL DEFAULT 'new',
+    job_kind TEXT,
+    employer_kind TEXT,
+    source_partner TEXT,
+    external_host TEXT,
+    homeoffice TEXT,
+    salary TEXT,
+    contract TEXT,
+    worktime TEXT,
+    distance_km INTEGER,
+    start_date TEXT,
+    changed_at TEXT,
+    street TEXT,
+    plz TEXT,
+    education TEXT,
+    employer_hash TEXT,
+    gone_at TEXT
 )
 """
+
+# Spalten, die Bestandsdatenbanken aus Schema-Version 1 nachgeruestet bekommen.
+NEUE_SPALTEN_V2 = (
+    ("job_kind", "TEXT"),
+    ("employer_kind", "TEXT"),
+    ("source_partner", "TEXT"),
+    ("external_host", "TEXT"),
+    ("homeoffice", "TEXT"),
+    ("salary", "TEXT"),
+    ("contract", "TEXT"),
+    ("worktime", "TEXT"),
+    ("distance_km", "INTEGER"),
+    ("start_date", "TEXT"),
+    ("changed_at", "TEXT"),
+    ("street", "TEXT"),
+    ("plz", "TEXT"),
+    ("education", "TEXT"),
+    ("employer_hash", "TEXT"),
+    ("gone_at", "TEXT"),
+)
 
 SCHEMA_APPLICATIONS = """
 CREATE TABLE IF NOT EXISTS applications (
@@ -57,6 +93,15 @@ def _migrate(conn: sqlite3.Connection) -> None:
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version < 1:
         conn.execute("UPDATE jobs SET status = 'selected' WHERE status = 'generated'")
+    if version < 2:
+        # Spaltenweise statt Tabellenneubau: die Bestandsdatenbank haengt an
+        # Bewerbungen, die einen Fremdschluessel auf jobs.id halten.
+        vorhanden = {
+            zeile["name"] for zeile in conn.execute("PRAGMA table_info(jobs)").fetchall()
+        }
+        for name, typ in NEUE_SPALTEN_V2:
+            if name not in vorhanden:
+                conn.execute(f"ALTER TABLE jobs ADD COLUMN {name} {typ}")
     if version < SCHEMA_VERSION:
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
@@ -88,8 +133,11 @@ def insert_job(conn: sqlite3.Connection, item: JobItem) -> bool:
         """INSERT OR IGNORE INTO jobs
            (url, dedupe_hash, source_ref, title, company, company_website,
             location, source, posted_at, contact_name, contact_email,
-            description_md, scraped_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            description_md, scraped_at, job_kind, employer_kind, source_partner,
+            external_host, homeoffice, salary, contract, worktime, distance_km,
+            start_date, changed_at, street, plz, education, employer_hash, gone_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                   ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             item.url,
             dedupe_hash(item),
@@ -104,6 +152,22 @@ def insert_job(conn: sqlite3.Connection, item: JobItem) -> bool:
             item.contact_email,
             item.description_md,
             item.scraped_at.isoformat(),
+            item.job_kind,
+            item.employer_kind,
+            item.source_partner,
+            item.external_host,
+            item.homeoffice,
+            item.salary,
+            item.contract,
+            item.worktime,
+            item.distance_km,
+            item.start_date.isoformat() if item.start_date else None,
+            item.changed_at.isoformat() if item.changed_at else None,
+            item.street,
+            item.plz,
+            item.education,
+            item.employer_hash,
+            item.gone_at.isoformat() if item.gone_at else None,
         ),
     )
     conn.commit()
@@ -139,14 +203,19 @@ def suche_jobs(
     status: str | None = None,
     q: str | None = None,
     ort: str | None = None,
+    mit_verschwundenen: bool = False,
 ) -> list[sqlite3.Row]:
     """Stellenliste mit optionalen Filtern.
 
     `q` sucht in Titel und Firma, `ort` im Ort — beides ohne
-    Beachtung der Groß-/Kleinschreibung.
+    Beachtung der Groß-/Kleinschreibung. Stellen, deren Anzeige bei der
+    Quelle verschwunden ist, bleiben aussen vor, solange
+    `mit_verschwundenen` nicht gesetzt ist.
     """
     sql = "SELECT * FROM jobs WHERE 1=1"
     werte: list[str] = []
+    if not mit_verschwundenen:
+        sql += " AND gone_at IS NULL"
     if status:
         sql += " AND status = ?"
         werte.append(status)
@@ -158,6 +227,30 @@ def suche_jobs(
         werte.append(f"%{ort.lower()}%")
     sql += " ORDER BY id DESC"
     return conn.execute(sql, werte).fetchall()
+
+
+def offene_referenzen(conn: sqlite3.Connection) -> list[str]:
+    """Referenznummern aller Stellen, die noch als verfügbar gelten."""
+    zeilen = conn.execute(
+        "SELECT source_ref FROM jobs"
+        " WHERE source_ref IS NOT NULL AND gone_at IS NULL ORDER BY id"
+    ).fetchall()
+    return [zeile["source_ref"] for zeile in zeilen]
+
+
+def mark_gone(conn: sqlite3.Connection, refnrs: set[str]) -> int:
+    """Markiert die genannten Stellen als bei der Quelle verschwunden."""
+    if not refnrs:
+        return 0
+    jetzt = datetime.now(UTC).isoformat()
+    platzhalter = ",".join("?" * len(refnrs))
+    cur = conn.execute(
+        f"UPDATE jobs SET gone_at = ?"
+        f" WHERE gone_at IS NULL AND source_ref IN ({platzhalter})",
+        (jetzt, *sorted(refnrs)),
+    )
+    conn.commit()
+    return cur.rowcount
 
 
 def row_to_item(row: sqlite3.Row) -> JobItem:
@@ -174,4 +267,20 @@ def row_to_item(row: sqlite3.Row) -> JobItem:
         contact_email=row["contact_email"],
         description_md=row["description_md"],
         scraped_at=datetime.fromisoformat(row["scraped_at"]),
+        job_kind=row["job_kind"],
+        employer_kind=row["employer_kind"],
+        source_partner=row["source_partner"],
+        external_host=row["external_host"],
+        homeoffice=row["homeoffice"],
+        salary=row["salary"],
+        contract=row["contract"],
+        worktime=row["worktime"],
+        distance_km=row["distance_km"],
+        start_date=date.fromisoformat(row["start_date"]) if row["start_date"] else None,
+        changed_at=datetime.fromisoformat(row["changed_at"]) if row["changed_at"] else None,
+        street=row["street"],
+        plz=row["plz"],
+        education=row["education"],
+        employer_hash=row["employer_hash"],
+        gone_at=datetime.fromisoformat(row["gone_at"]) if row["gone_at"] else None,
     )
