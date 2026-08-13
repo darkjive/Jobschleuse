@@ -1,5 +1,5 @@
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -147,3 +147,34 @@ def test_verbindung_darf_thread_wechseln(tmp_path):
     thread.start()
     thread.join()
     assert fehler == []
+
+
+def test_jobitem_neue_felder_sind_optional():
+    """Bestehende Aufrufe ohne die neuen Felder bleiben gueltig."""
+    item = make_item()
+    assert item.job_kind is None
+    assert item.employer_kind is None
+    assert item.source_partner is None
+    assert item.gone_at is None
+
+
+def test_jobitem_nimmt_neue_felder_an():
+    item = make_item(
+        job_kind="ARBEIT",
+        employer_kind="vermittler",
+        source_partner="XING GmbH & Co. KG",
+        external_host="persy.jobs",
+        homeoffice="NACH_VEREINBARUNG",
+        salary="19,78–26,00 €/h",
+        contract="unbefristet",
+        worktime="Vollzeit",
+        distance_km=42,
+        start_date=date(2026, 9, 1),
+        changed_at=datetime(2026, 8, 10, 18, 5, tzinfo=UTC),
+        street="Lyoner Str. 12",
+        plz="60528",
+        education="MITTLERE_REIFE_MITTLERER_BILDUNGSABSCHLUSS",
+        employer_hash="fJsK89VjMAftJUvCwcatHyz",
+    )
+    assert item.distance_km == 42
+    assert item.start_date.isoformat() == "2026-09-01"
