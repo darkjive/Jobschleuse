@@ -31,9 +31,16 @@ def liste(
     status: str = "",
     q: str = "",
     ort: str = "",
+    verschwunden: str = "",
     conn: sqlite3.Connection = Depends(get_conn),
 ):
-    stellen = db.suche_jobs(conn, status=status or None, q=q or None, ort=ort or None)
+    stellen = db.suche_jobs(
+        conn,
+        status=status or None,
+        q=q or None,
+        ort=ort or None,
+        mit_verschwundenen=bool(verschwunden),
+    )
     return templates.TemplateResponse(request, "_stellenliste.html", {"stellen": stellen})
 
 
@@ -64,15 +71,33 @@ def reject(request: Request, job_id: int, conn: sqlite3.Connection = Depends(get
     return _detail(request, conn, job_id)
 
 
-def suche_ausfuehren(cfg: Config, was: str, wo: str, umkreis: int) -> str:
+def suche_ausfuehren(
+    cfg: Config,
+    was: str,
+    wo: str,
+    umkreis: int,
+    veroeffentlicht_seit: int | None,
+    ohne_zeitarbeit: bool,
+    nur_arbeit: bool,
+) -> str:
     """Läuft im Hintergrund-Thread — öffnet deshalb eine eigene Verbindung."""
-    items = arbeitsagentur.fetch_jobs(was=was, wo=wo, umkreis=umkreis)
+    items = arbeitsagentur.fetch_jobs(
+        was=was,
+        wo=wo,
+        umkreis=umkreis,
+        veroeffentlicht_seit=veroeffentlicht_seit,
+        ohne_zeitarbeit=ohne_zeitarbeit,
+        nur_arbeit=nur_arbeit,
+    )
     conn = db.connect(cfg.db_path)
     try:
         neu = sum(1 for item in items if db.insert_job(conn, item))
+        # Bei der Gelegenheit den Bestand nachziehen: derselbe Abruf, der
+        # gerade neue Treffer geprueft hat, taugt auch fuer die alten.
+        weg = db.mark_gone(conn, arbeitsagentur.check_alive(db.offene_referenzen(conn)))
     finally:
         conn.close()
-    return f"{len(items)} Stellen geholt, {neu} neu."
+    return f"{len(items)} Stellen geholt, {neu} neu, {weg} nicht mehr verfügbar."
 
 
 @router.post("/jobs/fetch", response_class=HTMLResponse)
@@ -81,10 +106,21 @@ def fetch(
     was: str = Form(...),
     wo: str = Form(...),
     umkreis: int = Form(25),
+    seit: str = Form(""),
+    ohne_zeitarbeit: str = Form(""),
+    nur_arbeit: str = Form(""),
 ):
     cfg = request.app.state.cfg
     task_id = tasks.start(
-        f"Suche „{was}“ in {wo}", suche_ausfuehren, cfg, was, wo, umkreis
+        f"Suche „{was}“ in {wo}",
+        suche_ausfuehren,
+        cfg,
+        was,
+        wo,
+        umkreis,
+        int(seit) if seit else None,
+        bool(ohne_zeitarbeit),
+        bool(nur_arbeit),
     )
     return templates.TemplateResponse(
         request,

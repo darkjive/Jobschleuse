@@ -154,7 +154,7 @@ def test_suche_ausfuehren_schreibt_stellen(tmp_path, monkeypatch):
     cfg = make_cfg(tmp_path)
     db.connect(cfg.db_path).close()
 
-    def fake_fetch(was, wo, umkreis=25, max_pages=5):
+    def fake_fetch(**kwargs):
         return [
             JobItem(
                 title="Neue Stelle (m/w/d)",
@@ -168,7 +168,8 @@ def test_suche_ausfuehren_schreibt_stellen(tmp_path, monkeypatch):
         ]
 
     monkeypatch.setattr(jobs_routen.arbeitsagentur, "fetch_jobs", fake_fetch)
-    meldung = jobs_routen.suche_ausfuehren(cfg, "Entwickler", "Mainz", 25)
+    monkeypatch.setattr(jobs_routen.arbeitsagentur, "check_alive", lambda refnrs: set())
+    meldung = jobs_routen.suche_ausfuehren(cfg, "Entwickler", "Mainz", 25, None, False, False)
 
     assert "1" in meldung
     conn = db.connect(cfg.db_path)
@@ -180,6 +181,7 @@ def test_fetch_liefert_fortschritt_mit_task_id(tmp_path, monkeypatch):
 
     cfg = make_cfg(tmp_path)
     monkeypatch.setattr(jobs_routen.arbeitsagentur, "fetch_jobs", lambda **kw: [])
+    monkeypatch.setattr(jobs_routen.arbeitsagentur, "check_alive", lambda refnrs: set())
     client = TestClient(create_app(cfg))
     antwort = client.post(
         "/jobs/fetch", data={"was": "Entwickler", "wo": "Mainz", "umkreis": "25"}
@@ -224,6 +226,48 @@ def test_task_status_verwirft_fremden_swap(tmp_path):
     )
     assert 'hx-swap="innerHTML"' in antwort.text
     assert "delete" not in antwort.text
+
+
+def test_suche_markiert_verschwundene(tmp_path, monkeypatch):
+    from bewerbungs_pipeline.sources import arbeitsagentur
+    from bewerbungs_pipeline.web.routes import jobs as jobs_routen
+
+    cfg = make_cfg(tmp_path)
+    conn = db.connect(cfg.db_path)
+    conn.execute(
+        "INSERT INTO jobs (url, dedupe_hash, source_ref, title, company, location,"
+        " source, scraped_at) VALUES ('http://alt', 'h1', 'ref-weg', 'Alte Stelle',"
+        " 'Firma', 'Ort', 'arbeitsagentur', '2026-07-01T00:00:00+00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr(arbeitsagentur, "fetch_jobs", lambda **kw: [])
+    monkeypatch.setattr(arbeitsagentur, "check_alive", lambda refnrs: {"ref-weg"})
+
+    meldung = jobs_routen.suche_ausfuehren(cfg, "Frontend", "Darmstadt", 50, None, False, False)
+    assert "1 nicht mehr verfügbar" in meldung
+
+    conn = db.connect(cfg.db_path)
+    zeile = conn.execute("SELECT gone_at FROM jobs WHERE source_ref = 'ref-weg'").fetchone()
+    assert zeile["gone_at"] is not None
+    conn.close()
+
+
+def test_liste_blendet_verschwundene_aus(tmp_path):
+    cfg = make_cfg(tmp_path)
+    ids = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    conn.execute("UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?",
+                 (list(ids.values())[0],))
+    conn.commit()
+    conn.close()
+
+    client = TestClient(create_app(cfg))
+    ohne = client.get("/jobs").text
+    mit = client.get("/jobs?verschwunden=1").text
+    assert ohne.count("stelle__titel") == 1
+    assert mit.count("stelle__titel") == 2
 
 
 def test_task_status_reicht_outerhtml_durch(tmp_path):

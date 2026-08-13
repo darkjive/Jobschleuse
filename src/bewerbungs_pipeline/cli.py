@@ -9,9 +9,27 @@ from .sources import arbeitsagentur
 def _cmd_fetch(args: argparse.Namespace) -> int:
     cfg = load_config()
     conn = db.connect(cfg.db_path)
-    items = arbeitsagentur.fetch_jobs(was=args.was, wo=args.wo, umkreis=args.umkreis)
+    items = arbeitsagentur.fetch_jobs(
+        was=args.was,
+        wo=args.wo,
+        umkreis=args.umkreis,
+        veroeffentlicht_seit=args.seit,
+        ohne_zeitarbeit=args.ohne_zeitarbeit,
+        nur_arbeit=args.nur_arbeit,
+    )
     inserted = sum(1 for item in items if db.insert_job(conn, item))
-    print(f"{len(items)} Stellen geholt, {inserted} neu.")
+    weg = db.mark_gone(conn, arbeitsagentur.check_alive(db.offene_referenzen(conn)))
+    print(f"{len(items)} Stellen geholt, {inserted} neu, {weg} nicht mehr verfügbar.")
+    return 0
+
+
+def _cmd_check(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    conn = db.connect(cfg.db_path)
+    referenzen = db.offene_referenzen(conn)
+    print(f"{len(referenzen)} Stellen werden geprüft …")
+    weg = db.mark_gone(conn, arbeitsagentur.check_alive(referenzen))
+    print(f"{weg} Stellen sind bei der Quelle nicht mehr vorhanden.")
     return 0
 
 
@@ -82,11 +100,20 @@ def main(argv: list[str] | None = None) -> int:
     p_fetch.add_argument("--was", required=True, help="Suchbegriff, z. B. Beruf")
     p_fetch.add_argument("--wo", required=True, help="Ort")
     p_fetch.add_argument("--umkreis", type=int, default=25, help="Umkreis in km")
+    p_fetch.add_argument("--seit", type=int, default=None,
+                         help="nur Anzeigen der letzten N Tage")
+    p_fetch.add_argument("--ohne-zeitarbeit", action="store_true",
+                         help="Arbeitnehmerüberlassung ausblenden")
+    p_fetch.add_argument("--nur-arbeit", action="store_true",
+                         help="nur Arbeitsstellen, keine Ausbildungen")
     p_fetch.set_defaults(func=_cmd_fetch)
 
     p_list = sub.add_parser("list", help="Stellen anzeigen")
     p_list.add_argument("--status", choices=sorted(db.STATUSES), default=None)
     p_list.set_defaults(func=_cmd_list)
+
+    p_check = sub.add_parser("check", help="Bestand auf verschwundene Anzeigen prüfen")
+    p_check.set_defaults(func=_cmd_check)
 
     p_pick = sub.add_parser("pick", help="Stelle auswählen")
     p_pick.add_argument("id", type=int)
