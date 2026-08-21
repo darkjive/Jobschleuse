@@ -199,3 +199,16 @@ a { color: var(--accent); }
 .bewerbung__vorschau { padding: 0; }
 
 #vorschau { width: 100%; height: 100%; border: 0; background: #fff; }
+
+.fakten {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2rem 0.8rem;
+  margin: 0.8rem 0;
+  font-size: 0.85rem;
+}
+
+.fakten dt { color: var(--text-dim); }
+.fakten dd { margin: 0; }
+
+.haken { display: flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; }

@@ -324,3 +324,46 @@ def test_liste_markiert_verschwundene(tmp_path):
     text = TestClient(create_app(cfg)).get("/jobs?verschwunden=1").text
     assert "nicht mehr verfügbar" in text
     assert "stelle--weg" in text
+
+
+def test_detail_zeigt_faktenliste(tmp_path):
+    cfg = make_cfg(tmp_path)
+    conn = db.connect(cfg.db_path)
+    conn.execute(
+        "INSERT INTO jobs (url, dedupe_hash, source_ref, title, company, location,"
+        " source, scraped_at, street, plz, start_date, education, worktime,"
+        " source_partner) VALUES ('http://a', 'h1', 'ref-a', 'Titel', 'Firma', 'Ort',"
+        " 'arbeitsagentur', '2026-08-13T00:00:00+00:00', 'Lyoner Str. 12', '60528',"
+        " '2026-09-01', 'MITTLERE_REIFE_MITTLERER_BILDUNGSABSCHLUSS', 'Vollzeit',"
+        " 'XING GmbH & Co. KG')"
+    )
+    conn.commit()
+    job_id = conn.execute("SELECT id FROM jobs").fetchone()["id"]
+    conn.close()
+
+    text = TestClient(create_app(cfg)).get(f"/jobs/{job_id}").text
+    assert "Lyoner Str. 12" in text
+    assert "60528" in text
+    assert "Vollzeit" in text
+    assert "XING GmbH &amp; Co. KG" in text
+
+
+def test_detail_warnt_bei_verschwundener_stelle(tmp_path):
+    cfg = make_cfg(tmp_path)
+    ids = seed(cfg)
+    job_id = list(ids.values())[0]
+    conn = db.connect(cfg.db_path)
+    conn.execute("UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?", (job_id,))
+    conn.commit()
+    conn.close()
+
+    text = TestClient(create_app(cfg)).get(f"/jobs/{job_id}").text
+    assert "nicht mehr verfügbar" in text
+
+
+def test_suchformular_hat_neue_felder(tmp_path):
+    text = TestClient(create_app(make_cfg(tmp_path))).get("/").text
+    assert 'name="seit"' in text
+    assert 'name="ohne_zeitarbeit"' in text
+    assert 'name="nur_arbeit"' in text
+    assert 'name="verschwunden"' in text

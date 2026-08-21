@@ -31,7 +31,9 @@ Spec: `docs/specs/2026-07-08-bewerbungs-pipeline-design.md`.
 
 ## Benutzung
 
-    uv run jobs fetch --was "Mechatroniker" --wo "Frankfurt" --umkreis 50
+    uv run jobs fetch --was "Mechatroniker" --wo "Frankfurt" --umkreis 50 \
+        --seit 14 --ohne-zeitarbeit --nur-arbeit
+    uv run jobs check             # Bestand auf verschwundene Anzeigen prüfen
     uv run jobs list --status new
     uv run jobs pick 3
     uv run jobs generate 3      # → out/<firma>/index.html
@@ -45,6 +47,11 @@ nachbearbeiten oder neu erzeugen lassen, Vorschau ansehen, exportieren.
 Läuft ausschließlich lokal, ohne Login.
 
 Das CLI bleibt unverändert nutzbar.
+
+Jede Suche prüft nebenbei, ob die bereits gespeicherten Anzeigen bei der
+Quelle noch vorhanden sind. Verschwundene werden markiert und ausgeblendet,
+bleiben aber über „auch verschwundene zeigen" erreichbar — samt einer
+eventuell schon erzeugten Bewerbung.
 
 ## Ergebnis des Exports
 
