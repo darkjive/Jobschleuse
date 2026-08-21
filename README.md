@@ -1,13 +1,55 @@
 # Bewerbungs-Pipeline
 
-Stellen finden → Shortlist → Bewerbungsvorlage per LLM füllen.
-Spec: `docs/specs/2026-07-08-bewerbungs-pipeline-design.md`.
+**Stellen finden, anreichern und zur fertigen Bewerbung machen — lokal, ohne SaaS.**
+
+_Kommandozeilen-Tool mit optionaler Weboberfläche._
+
+Python · FastAPI + HTMX · SQLite · uv
+
+---
+
+Sucht Stellenangebote bei der Bundesagentur für Arbeit, reichert sie um
+Fakten an, die die Trefferliste allein nicht hergibt (Herkunft, Vermittlerart,
+Gehalt, Homeoffice, Entfernung, Frische), erkennt verschwundene Anzeigen von
+selbst und füllt für die ausgewählten eine Bewerbungsvorlage per LLM. Alle
+Daten bleiben lokal in SQLite; einzig der LLM-Aufruf zum Textfüllen verlässt
+den Rechner, mit frei wählbarem Endpunkt (`LLM_BASE_URL`).
+
+Specs: [`docs/specs/`](./docs/specs/) · Pläne: [`docs/plans/`](./docs/plans/).
+
+## Funktionsumfang
+
+| Bereich | Beschreibung |
+|---|---|
+| Suche | Bundesagentur-Schnittstelle, Filter nach Umkreis, Alter (`--seit`), ohne Zeitarbeit, nur Arbeitsstellen (keine Ausbildung) |
+| Anreicherung | Herkunft (Direktarbeitgeber/Vermittler/Zeitarbeit), Gehalt, Homeoffice, Vertrag, Arbeitszeit, Adresse, Entfernung — parallel nachgeladen, ohne die Suche zu verlangsamen |
+| Bestandspflege | erkennt bei jeder Suche und per `jobs check`, welche gespeicherten Anzeigen bei der Quelle verschwunden sind; markiert statt zu löschen |
+| Verwaltung | Status je Stelle (`new` / `selected` / `rejected`) über CLI oder Weboberfläche |
+| Vorlage & Slots | eigene HTML-Vorlage mit `data-slot`-Markierungen, Textblöcke werden per LLM aus Profil + Stellenanzeige gefüllt, einzeln nachbearbeitbar |
+| Export | fertiges PDF (via lokalem Chromium) plus HTML/CSS/Assets für Nachkorrekturen von Hand |
 
 ## Setup
 
     uv sync
     cp .env.example .env        # LLM_BASE_URL, LLM_API_KEY, LLM_MODEL eintragen
     cp profile.yaml.example profile.yaml   # persönliche Daten eintragen
+
+## Architektur
+
+    src/bewerbungs_pipeline/
+      sources/arbeitsagentur.py   Suche, Anreicherung, Verfügbarkeitsprüfung
+      sources/normalisierung.py   Rohwerte der Quelle → Anzeigewerte (rein, ohne Seiteneffekt)
+      db.py                       SQLite-Schema, Migration, Zugriff
+      models.py                   JobItem — Datenmodell für Stellen
+      applications.py             Bewerbung anlegen, Slots füllen (LLM), Beschreibung nachladen
+      llm.py                      LLM-Client, Antwortschema, Validierung
+      slots.py                    data-slot-Erkennung in HTML-Vorlagen
+      pdf.py                      Export über lokales Chromium (Playwright)
+      cli.py                      Kommandozeile
+      web/                        FastAPI + HTMX-Oberfläche (optional, lokal)
+
+Das CLI ist der primäre Weg; die Weboberfläche baut auf denselben
+Funktionen auf, ersetzt sie nicht.
 
 ## Vorlagen
 
@@ -19,7 +61,7 @@ Spec: `docs/specs/2026-07-08-bewerbungs-pipeline-design.md`.
 - `styles.css` – Geteilte Styles für `bewerbung.html`.
 - `assets/` – Bilder, Fonts etc. für `bewerbung.html`.
 
-## Eigene Vorlage anschließen
+### Eigene Vorlage anschließen
 
 1. HTML-Datei nach `templates/<name>.html` kopieren.
 2. Jeden Textblock, der pro Bewerbung wechseln soll, mit
@@ -68,4 +110,3 @@ bricht der Export mit einer entsprechenden Meldung ab.
 
 Die Vorlage bringt Schriften, Icons und Bilder lokal mit — Vorschau und PDF
 sehen deshalb offline genauso aus wie online.
-
