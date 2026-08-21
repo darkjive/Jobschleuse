@@ -6,8 +6,21 @@ from openai import OpenAI
 
 from .models import JobItem
 
-
-_LEGAL_SUFFIXES = {"gmbh", "ag", "kg", "se", "ug", "ohg", "gbr", "mbh", "co", "co.", "&", "e.v.", "e.k."}
+_LEGAL_SUFFIXES = {
+    "gmbh",
+    "ag",
+    "kg",
+    "se",
+    "ug",
+    "ohg",
+    "gbr",
+    "mbh",
+    "co",
+    "co.",
+    "&",
+    "e.v.",
+    "e.k.",
+}
 
 
 def _company_core(company: str) -> str:
@@ -200,7 +213,9 @@ def validate_values(values: dict, slots: dict[str, str], company: str) -> list[s
     joined = " ".join(str(v) for v in values.values()).lower()
     core = _company_core(company).lower()
     if core not in joined:
-        problems.append(f"Firmenname '{_company_core(company)}' kommt in keinem Slot vor")
+        problems.append(
+            f"Firmenname '{_company_core(company)}' kommt in keinem Slot vor"
+        )
     return problems
 
 

@@ -97,7 +97,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         # Spaltenweise statt Tabellenneubau: die Bestandsdatenbank haengt an
         # Bewerbungen, die einen Fremdschluessel auf jobs.id halten.
         vorhanden = {
-            zeile["name"] for zeile in conn.execute("PRAGMA table_info(jobs)").fetchall()
+            zeile["name"]
+            for zeile in conn.execute("PRAGMA table_info(jobs)").fetchall()
         }
         for name, typ in NEUE_SPALTEN_V2:
             if name not in vorhanden:
@@ -277,7 +278,9 @@ def row_to_item(row: sqlite3.Row) -> JobItem:
         worktime=row["worktime"],
         distance_km=row["distance_km"],
         start_date=date.fromisoformat(row["start_date"]) if row["start_date"] else None,
-        changed_at=datetime.fromisoformat(row["changed_at"]) if row["changed_at"] else None,
+        changed_at=datetime.fromisoformat(row["changed_at"])
+        if row["changed_at"]
+        else None,
         street=row["street"],
         plz=row["plz"],
         education=row["education"],

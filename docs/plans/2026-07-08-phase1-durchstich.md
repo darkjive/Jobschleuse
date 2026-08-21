@@ -234,7 +234,9 @@ def test_dedupe_same_url(conn):
 
 def test_dedupe_cross_source_same_job(conn):
     db.insert_job(conn, make_item())
-    dup = make_item(url="https://andere-quelle.de/job/1", source_ref=None, source="career:acme")
+    dup = make_item(
+        url="https://andere-quelle.de/job/1", source_ref=None, source="career:acme"
+    )
     assert db.insert_job(conn, dup) is False
 
 
@@ -547,7 +549,9 @@ def parse_jobs(payload: dict) -> list[JobItem]:
     items: list[JobItem] = []
     for entry in payload.get("stellenangebote", []):
         refnr = entry.get("refnr")
-        url = entry.get("externeUrl") or (DETAIL_PAGE.format(refnr=refnr) if refnr else None)
+        url = entry.get("externeUrl") or (
+            DETAIL_PAGE.format(refnr=refnr) if refnr else None
+        )
         if not url:
             continue
         posted = entry.get("aktuelleVeroeffentlichungsdatum")
@@ -566,7 +570,9 @@ def parse_jobs(payload: dict) -> list[JobItem]:
     return items
 
 
-def _search_page(client: httpx.Client, was: str, wo: str, umkreis: int, page: int) -> dict:
+def _search_page(
+    client: httpx.Client, was: str, wo: str, umkreis: int, page: int
+) -> dict:
     response = client.get(
         f"{BASE_URL}/pc/v6/jobs",
         params={"was": was, "wo": wo, "umkreis": umkreis, "size": 100, "page": page},
@@ -577,7 +583,9 @@ def _search_page(client: httpx.Client, was: str, wo: str, umkreis: int, page: in
     return response.json()
 
 
-def fetch_jobs(was: str, wo: str, umkreis: int = 25, max_pages: int = 5) -> list[JobItem]:
+def fetch_jobs(
+    was: str, wo: str, umkreis: int = 25, max_pages: int = 5
+) -> list[JobItem]:
     items: list[JobItem] = []
     with httpx.Client() as client:
         for page in range(1, max_pages + 1):
@@ -888,7 +896,12 @@ def test_extract_duplicate_slot_raises():
 def test_fill_slots_replaces_only_slots():
     result = fill_slots(
         TEMPLATE,
-        {"firma": "Beispiel AG", "einstieg": "Neuer Einstieg.", "titel": "Bewerbung — Beispiel AG", "motivation": "Neue Motivation."},
+        {
+            "firma": "Beispiel AG",
+            "einstieg": "Neuer Einstieg.",
+            "titel": "Bewerbung — Beispiel AG",
+            "motivation": "Neue Motivation.",
+        },
     )
     assert "Beispiel AG" in result
     assert "AC Motoren GmbH" not in result
@@ -1006,9 +1019,7 @@ class FakeClient:
     def __init__(self, responses: list[str]):
         self.calls = 0
         self._responses = responses
-        self.chat = SimpleNamespace(
-            completions=SimpleNamespace(create=self._create)
-        )
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
 
     def _create(self, **kwargs):
         text = self._responses[self.calls]
@@ -1019,12 +1030,15 @@ class FakeClient:
 
 def good_response() -> str:
     return json.dumps(
-        {"firma": "Beispiel AG", "einstieg": "Ihre Anzeige bei der Beispiel AG hat mich überzeugt."}
+        {
+            "firma": "Beispiel AG",
+            "einstieg": "Ihre Anzeige bei der Beispiel AG hat mich überzeugt.",
+        }
     )
 
 
 def test_parse_response_strips_code_fence():
-    fenced = "```json\n{\"a\": \"b\"}\n```"
+    fenced = '```json\n{"a": "b"}\n```'
     assert llm.parse_response(fenced) == {"a": "b"}
 
 
@@ -1270,7 +1284,9 @@ def make_cfg(tmp_path, cbks_inbox=None) -> Config:
     )
 
 
-def seed(cfg, status="selected", description="Wir suchen Verstärkung im Service.") -> int:
+def seed(
+    cfg, status="selected", description="Wir suchen Verstärkung im Service."
+) -> int:
     conn = db.connect(cfg.db_path)
     db.insert_job(
         conn,
@@ -1373,7 +1389,10 @@ MIN_DESCRIPTION_CHARS = 200
 def slugify(text: str) -> str:
     normalized = (
         text.lower()
-        .replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+        .replace("ä", "ae")
+        .replace("ö", "oe")
+        .replace("ü", "ue")
+        .replace("ß", "ss")
     )
     slug = re.sub(r"[^a-z0-9]+", "-", normalized).strip("-")
     return slug or "firma"
@@ -1430,7 +1449,9 @@ def generate_application(conn, job_id: int, cfg: Config, client) -> Path:
 
     if cfg.cbks_inbox is not None:
         if cfg.cbks_inbox.is_dir():
-            shutil.copy(out_dir / "index.html", cfg.cbks_inbox / f"bewerbung-{slug}.html")
+            shutil.copy(
+                out_dir / "index.html", cfg.cbks_inbox / f"bewerbung-{slug}.html"
+            )
             shutil.copy(out_dir / "stelle.md", cfg.cbks_inbox / f"stelle-{slug}.md")
         else:
             print(
@@ -1451,7 +1472,9 @@ def _cmd_generate(args: argparse.Namespace) -> int:
 
     cfg = load_config()
     if not (cfg.llm_base_url and cfg.llm_api_key and cfg.llm_model):
-        print("LLM_BASE_URL, LLM_API_KEY und LLM_MODEL in .env setzen.", file=sys.stderr)
+        print(
+            "LLM_BASE_URL, LLM_API_KEY und LLM_MODEL in .env setzen.", file=sys.stderr
+        )
         return 1
     conn = db.connect(cfg.db_path)
     client = make_client(cfg.llm_base_url, cfg.llm_api_key)

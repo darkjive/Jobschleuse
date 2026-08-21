@@ -407,7 +407,10 @@ class ApplicationError(Exception):
 def slugify(text: str) -> str:
     normalized = (
         text.lower()
-        .replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+        .replace("ä", "ae")
+        .replace("ö", "oe")
+        .replace("ü", "ue")
+        .replace("ß", "ss")
     )
     slug = re.sub(r"[^a-z0-9]+", "-", normalized).strip("-")
     return slug or "firma"
@@ -674,7 +677,9 @@ def export(conn, app_id: int, cfg: Config) -> Path:
 
     if cfg.cbks_inbox is not None:
         if cfg.cbks_inbox.is_dir():
-            shutil.copy(out_dir / "index.html", cfg.cbks_inbox / f"bewerbung-{slug}.html")
+            shutil.copy(
+                out_dir / "index.html", cfg.cbks_inbox / f"bewerbung-{slug}.html"
+            )
             shutil.copy(out_dir / "stelle.md", cfg.cbks_inbox / f"stelle-{slug}.md")
             if template_css.exists():
                 shutil.copy(template_css, cfg.cbks_inbox / "styles.css")
@@ -1079,7 +1084,7 @@ _counter = itertools.count(1)
 class Task:
     id: str
     beschreibung: str
-    status: str = "läuft"          # "läuft" | "fertig" | "fehler"
+    status: str = "läuft"  # "läuft" | "fertig" | "fehler"
     meldung: str = ""
     ergebnis: object | None = field(default=None)
 
@@ -1779,16 +1784,12 @@ def liste(
 
 
 @router.get("/jobs/{job_id}", response_class=HTMLResponse)
-def detail(
-    request: Request, job_id: int, conn: sqlite3.Connection = Depends(get_conn)
-):
+def detail(request: Request, job_id: int, conn: sqlite3.Connection = Depends(get_conn)):
     return _detail(request, conn, job_id)
 
 
 @router.post("/jobs/{job_id}/pick", response_class=HTMLResponse)
-def pick(
-    request: Request, job_id: int, conn: sqlite3.Connection = Depends(get_conn)
-):
+def pick(request: Request, job_id: int, conn: sqlite3.Connection = Depends(get_conn)):
     if db.get_job(conn, job_id) is None:
         return HTMLResponse(
             '<p class="meldung meldung--fehler">Stelle nicht gefunden.</p>',
@@ -1799,9 +1800,7 @@ def pick(
 
 
 @router.post("/jobs/{job_id}/reject", response_class=HTMLResponse)
-def reject(
-    request: Request, job_id: int, conn: sqlite3.Connection = Depends(get_conn)
-):
+def reject(request: Request, job_id: int, conn: sqlite3.Connection = Depends(get_conn)):
     if db.get_job(conn, job_id) is None:
         return HTMLResponse(
             '<p class="meldung meldung--fehler">Stelle nicht gefunden.</p>',
@@ -1974,9 +1973,7 @@ def test_fetch_liefert_fortschritt_mit_task_id(tmp_path, monkeypatch):
     from bewerbungs_pipeline.web.routes import jobs as jobs_routen
 
     cfg = make_cfg(tmp_path)
-    monkeypatch.setattr(
-        jobs_routen.arbeitsagentur, "fetch_jobs", lambda **kw: []
-    )
+    monkeypatch.setattr(jobs_routen.arbeitsagentur, "fetch_jobs", lambda **kw: [])
     client = TestClient(create_app(cfg))
     antwort = client.post(
         "/jobs/fetch", data={"was": "Entwickler", "wo": "Mainz", "umkreis": "25"}
@@ -2447,7 +2444,9 @@ router = APIRouter()
 
 def _client(cfg: Config):
     if not (cfg.llm_base_url and cfg.llm_api_key and cfg.llm_model):
-        raise ApplicationError("LLM_BASE_URL, LLM_API_KEY und LLM_MODEL in .env setzen.")
+        raise ApplicationError(
+            "LLM_BASE_URL, LLM_API_KEY und LLM_MODEL in .env setzen."
+        )
     return make_client(cfg.llm_base_url, cfg.llm_api_key)
 
 
@@ -2532,7 +2531,9 @@ def slot_neu(request: Request, app_id: int, slot: str):
 
 
 @router.get("/applications/{app_id}/preview", response_class=HTMLResponse)
-def vorschau(request: Request, app_id: int, conn: sqlite3.Connection = Depends(get_conn)):
+def vorschau(
+    request: Request, app_id: int, conn: sqlite3.Connection = Depends(get_conn)
+):
     cfg = request.app.state.cfg
     try:
         html = applications.render(conn, app_id, cfg)
@@ -2544,7 +2545,9 @@ def vorschau(request: Request, app_id: int, conn: sqlite3.Connection = Depends(g
 
 
 @router.post("/applications/{app_id}/export", response_class=HTMLResponse)
-def exportieren(app_id: int, request: Request, conn: sqlite3.Connection = Depends(get_conn)):
+def exportieren(
+    app_id: int, request: Request, conn: sqlite3.Connection = Depends(get_conn)
+):
     cfg = request.app.state.cfg
     try:
         ziel = applications.export(conn, app_id, cfg)
@@ -2680,7 +2683,7 @@ def test_vorschau_schreibt_assetpfade_um(tmp_path):
     app_id = bewerbung_anlegen(cfg, seed(cfg))
     client = TestClient(create_app(cfg))
     antwort = client.get(f"/applications/{app_id}/preview")
-    assert '/template-assets/styles.css' in antwort.text
+    assert "/template-assets/styles.css" in antwort.text
 ```
 
 Dafür oben in der Datei ergänzen:
@@ -2721,7 +2724,9 @@ Expected: FAIL — `AttributeError: module ... has no attribute 'pfade_umschreib
 In `routes/applications.py` `import re` ergänzen und einfügen:
 
 ```python
-_ASSET_RE = re.compile(r'(?P<attr>\b(?:href|src)=")(?P<pfad>(?!https?:|/|data:|#)[^"]+)"')
+_ASSET_RE = re.compile(
+    r'(?P<attr>\b(?:href|src)=")(?P<pfad>(?!https?:|/|data:|#)[^"]+)"'
+)
 
 
 def pfade_umschreiben(html: str) -> str:

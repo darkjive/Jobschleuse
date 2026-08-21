@@ -7,8 +7,20 @@ _WHITESPACE_RE = re.compile(r"\s+")
 
 # HTML-Void-Elemente: können kein Kind-Content haben, daher kein data-slot möglich.
 _VOID_ELEMENTS = {
-    "area", "base", "br", "col", "embed", "hr", "img", "input",
-    "link", "meta", "param", "source", "track", "wbr",
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr",
 }
 
 
@@ -56,12 +68,14 @@ class _SlotParser(HTMLParser):
             if slot_name in self.ranges:
                 raise ValueError(f"Slot doppelt vergeben: {slot_name}")
             start = self._current_offset() + len(self.get_starttag_text())
-            self._stack.append({
-                "tag": tag,
-                "slot": slot_name,
-                "depth": 0,
-                "start": start,
-            })
+            self._stack.append(
+                {
+                    "tag": tag,
+                    "slot": slot_name,
+                    "depth": 0,
+                    "start": start,
+                }
+            )
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         slot_name = self._slot_name(attrs)

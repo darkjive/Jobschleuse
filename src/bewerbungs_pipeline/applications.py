@@ -24,7 +24,10 @@ class ApplicationError(Exception):
 def slugify(text: str) -> str:
     normalized = (
         text.lower()
-        .replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+        .replace("ä", "ae")
+        .replace("ö", "oe")
+        .replace("ü", "ue")
+        .replace("ß", "ss")
     )
     slug = re.sub(r"[^a-z0-9]+", "-", normalized).strip("-")
     return slug or "firma"
@@ -43,7 +46,10 @@ def ensure_description(conn, row) -> sqlite3.Row:
             # Anzeige ist bei der Quelle verschwunden — vermerken und mit dem
             # arbeiten, was gespeichert ist.
             dbmod.mark_gone(conn, {row["source_ref"]})
-            print("Warnung: Anzeige ist bei der Quelle nicht mehr vorhanden.", file=sys.stderr)
+            print(
+                "Warnung: Anzeige ist bei der Quelle nicht mehr vorhanden.",
+                file=sys.stderr,
+            )
             return dbmod.get_job(conn, row["id"])
         text = payload.get("stellenangebotsBeschreibung") or ""
         if text:
@@ -98,7 +104,7 @@ def create(conn, job_id: int, cfg: Config, client) -> int:
             f"Stelle {job_id} hat Status '{row['status']}' — erst auswählen."
         )
 
-    template, slots = _template_slots(cfg)
+    _template, slots = _template_slots(cfg)
     profile = _load_profile(cfg)
     row = ensure_description(conn, row)
     job = dbmod.row_to_item(row)
@@ -256,7 +262,9 @@ def export(conn, app_id: int, cfg: Config) -> Path:
 
     if cfg.cbks_inbox is not None:
         if cfg.cbks_inbox.is_dir():
-            shutil.copy(out_dir / "index.html", cfg.cbks_inbox / f"bewerbung-{slug}.html")
+            shutil.copy(
+                out_dir / "index.html", cfg.cbks_inbox / f"bewerbung-{slug}.html"
+            )
             shutil.copy(out_dir / "stelle.md", cfg.cbks_inbox / f"stelle-{slug}.md")
             shutil.copy(pdf_datei, cfg.cbks_inbox / pdf_datei.name)
             if template_css.exists():

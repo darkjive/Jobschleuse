@@ -89,7 +89,9 @@ def test_check_markiert_verschwundene(env, monkeypatch, capsys):
 
     monkeypatch.setattr(cli.arbeitsagentur, "check_alive", lambda refnrs: {"ref-weg"})
     assert cli.main(["check"]) == 0
-    assert "1 Stellen sind bei der Quelle nicht mehr vorhanden." in capsys.readouterr().out
+    assert (
+        "1 Stellen sind bei der Quelle nicht mehr vorhanden." in capsys.readouterr().out
+    )
 
 
 def test_fetch_reicht_neue_optionen_durch(env, monkeypatch, capsys):
@@ -101,10 +103,19 @@ def test_fetch_reicht_neue_optionen_durch(env, monkeypatch, capsys):
 
     monkeypatch.setattr(cli.arbeitsagentur, "fetch_jobs", falsches_holen)
     monkeypatch.setattr(cli.arbeitsagentur, "check_alive", lambda refnrs: set())
-    cli.main([
-        "fetch", "--was", "Frontend", "--wo", "Darmstadt",
-        "--seit", "7", "--ohne-zeitarbeit", "--nur-arbeit",
-    ])
+    cli.main(
+        [
+            "fetch",
+            "--was",
+            "Frontend",
+            "--wo",
+            "Darmstadt",
+            "--seit",
+            "7",
+            "--ohne-zeitarbeit",
+            "--nur-arbeit",
+        ]
+    )
     assert gesehen["veroeffentlicht_seit"] == 7
     assert gesehen["ohne_zeitarbeit"] is True
     assert gesehen["nur_arbeit"] is True

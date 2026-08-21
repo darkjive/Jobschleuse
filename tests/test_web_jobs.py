@@ -169,7 +169,9 @@ def test_suche_ausfuehren_schreibt_stellen(tmp_path, monkeypatch):
 
     monkeypatch.setattr(jobs_routen.arbeitsagentur, "fetch_jobs", fake_fetch)
     monkeypatch.setattr(jobs_routen.arbeitsagentur, "check_alive", lambda refnrs: set())
-    meldung = jobs_routen.suche_ausfuehren(cfg, "Entwickler", "Mainz", 25, None, False, False)
+    meldung = jobs_routen.suche_ausfuehren(
+        cfg, "Entwickler", "Mainz", 25, None, False, False
+    )
 
     assert "1" in meldung
     conn = db.connect(cfg.db_path)
@@ -222,7 +224,11 @@ def test_task_status_verwirft_fremden_swap(tmp_path):
     client = TestClient(create_app(cfg))
     antwort = client.get(
         f"/tasks/{task_id}",
-        params={"ziel": "/jobs", "ziel_element": "#stellenliste", "ziel_swap": "delete"},
+        params={
+            "ziel": "/jobs",
+            "ziel_element": "#stellenliste",
+            "ziel_swap": "delete",
+        },
     )
     assert 'hx-swap="innerHTML"' in antwort.text
     assert "delete" not in antwort.text
@@ -245,11 +251,15 @@ def test_suche_markiert_verschwundene(tmp_path, monkeypatch):
     monkeypatch.setattr(arbeitsagentur, "fetch_jobs", lambda **kw: [])
     monkeypatch.setattr(arbeitsagentur, "check_alive", lambda refnrs: {"ref-weg"})
 
-    meldung = jobs_routen.suche_ausfuehren(cfg, "Frontend", "Darmstadt", 50, None, False, False)
+    meldung = jobs_routen.suche_ausfuehren(
+        cfg, "Frontend", "Darmstadt", 50, None, False, False
+    )
     assert "1 nicht mehr verfügbar" in meldung
 
     conn = db.connect(cfg.db_path)
-    zeile = conn.execute("SELECT gone_at FROM jobs WHERE source_ref = 'ref-weg'").fetchone()
+    zeile = conn.execute(
+        "SELECT gone_at FROM jobs WHERE source_ref = 'ref-weg'"
+    ).fetchone()
     assert zeile["gone_at"] is not None
     conn.close()
 
@@ -258,8 +268,10 @@ def test_liste_blendet_verschwundene_aus(tmp_path):
     cfg = make_cfg(tmp_path)
     ids = seed(cfg)
     conn = db.connect(cfg.db_path)
-    conn.execute("UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?",
-                 (list(ids.values())[0],))
+    conn.execute(
+        "UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?",
+        (next(iter(ids.values())),),
+    )
     conn.commit()
     conn.close()
 
@@ -316,8 +328,10 @@ def test_liste_markiert_verschwundene(tmp_path):
     cfg = make_cfg(tmp_path)
     ids = seed(cfg)
     conn = db.connect(cfg.db_path)
-    conn.execute("UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?",
-                 (list(ids.values())[0],))
+    conn.execute(
+        "UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?",
+        (next(iter(ids.values())),),
+    )
     conn.commit()
     conn.close()
 
@@ -351,9 +365,11 @@ def test_detail_zeigt_faktenliste(tmp_path):
 def test_detail_warnt_bei_verschwundener_stelle(tmp_path):
     cfg = make_cfg(tmp_path)
     ids = seed(cfg)
-    job_id = list(ids.values())[0]
+    job_id = next(iter(ids.values()))
     conn = db.connect(cfg.db_path)
-    conn.execute("UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?", (job_id,))
+    conn.execute(
+        "UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?", (job_id,)
+    )
     conn.commit()
     conn.close()
 

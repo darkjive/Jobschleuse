@@ -13,7 +13,9 @@ from ..app import get_conn, templates
 
 router = APIRouter()
 
-_ASSET_RE = re.compile(r'(?P<attr>\b(?:href|src)=")(?P<pfad>(?!https?:|/|data:|#)[^"]+)"')
+_ASSET_RE = re.compile(
+    r'(?P<attr>\b(?:href|src)=")(?P<pfad>(?!https?:|/|data:|#)[^"]+)"'
+)
 
 
 def pfade_umschreiben(quelltext: str) -> str:
@@ -39,7 +41,9 @@ def _fehler(meldung: object, status: int = 400) -> HTMLResponse:
 
 def _client(cfg: Config):
     if not (cfg.llm_base_url and cfg.llm_api_key and cfg.llm_model):
-        raise ApplicationError("LLM_BASE_URL, LLM_API_KEY und LLM_MODEL in .env setzen.")
+        raise ApplicationError(
+            "LLM_BASE_URL, LLM_API_KEY und LLM_MODEL in .env setzen."
+        )
     return make_client(cfg.llm_base_url, cfg.llm_api_key)
 
 

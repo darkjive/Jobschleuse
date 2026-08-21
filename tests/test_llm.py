@@ -36,9 +36,7 @@ class FakeClient:
             self._dict_response = json.dumps(responses, ensure_ascii=False)
         else:
             self._responses = responses
-        self.chat = SimpleNamespace(
-            completions=SimpleNamespace(create=self._create)
-        )
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
 
     def _create(self, **kwargs):
         if self._dict_response is not None:
@@ -52,12 +50,15 @@ class FakeClient:
 
 def good_response() -> str:
     return json.dumps(
-        {"firma": "Beispiel AG", "einstieg": "Ihre Anzeige bei der Beispiel AG hat mich überzeugt."}
+        {
+            "firma": "Beispiel AG",
+            "einstieg": "Ihre Anzeige bei der Beispiel AG hat mich überzeugt.",
+        }
     )
 
 
 def test_parse_response_strips_code_fence():
-    fenced = "```json\n{\"a\": \"b\"}\n```"
+    fenced = '```json\n{"a": "b"}\n```'
     assert llm.parse_response(fenced) == {"a": "b"}
 
 
@@ -217,7 +218,9 @@ def test_generationerror_zeigt_die_rohantwort():
     slots = {"firma": "Muster GmbH"}
     client = AufzeichnenderClient({})
     client.chat.completions.create = lambda **kw: SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content='{"firma": "kaputt""}'))]
+        choices=[
+            SimpleNamespace(message=SimpleNamespace(content='{"firma": "kaputt""}'))
+        ]
     )
     with pytest.raises(llm.GenerationError) as fehler:
         llm.generate_slot_texts(client, "test-model", _job(), slots, {})
@@ -254,7 +257,9 @@ def test_validate_values_erlaubt_grussformel_wenn_vorlage_eine_hat():
 
 def test_validate_values_laesst_normale_anrede_durch():
     slots = {"einstieg": "Mit großem Interesse habe ich Ihre Anzeige gelesen."}
-    werte = {"einstieg": "Sehr geehrte Damen und Herren, Ihre Anzeige der Beispiel AG …"}
+    werte = {
+        "einstieg": "Sehr geehrte Damen und Herren, Ihre Anzeige der Beispiel AG …"
+    }
     assert llm.validate_values(werte, slots, "Beispiel AG") == []
 
 
@@ -271,8 +276,13 @@ def test_generate_single_slot_weist_platzhalter_zurueck():
     client = AufzeichnenderClient({"adressat": "Beispiel AG, Straße Hausnr, PLZ Ort"})
     with pytest.raises(llm.GenerationError, match="Platzhalter"):
         llm.generate_single_slot(
-            client, "test-model", _job(), "adressat",
-            "AC Motoren GmbH\nEinsteinstr. 17", {"name": "Alain"}, {},
+            client,
+            "test-model",
+            _job(),
+            "adressat",
+            "AC Motoren GmbH\nEinsteinstr. 17",
+            {"name": "Alain"},
+            {},
         )
 
 
@@ -282,8 +292,13 @@ def test_generate_single_slot_kappt_zusaetzliche_grussformel():
         {"text": "Ich bewerbe mich.\n\nMit freundlichen Grüßen\nAlain"}
     )
     ergebnis = llm.generate_single_slot(
-        client, "test-model", _job(), "text", "Ich bewerbe mich gern.",
-        {"name": "Alain"}, {},
+        client,
+        "test-model",
+        _job(),
+        "text",
+        "Ich bewerbe mich gern.",
+        {"name": "Alain"},
+        {},
     )
     assert ergebnis == "Ich bewerbe mich."
     assert len(client.aufrufe) == 1
@@ -323,7 +338,10 @@ def test_grussformel_mitten_im_text_bleibt_unangetastet():
 def test_generate_slot_texts_rettet_lauf_mit_grussformel():
     slots = {"firma": "Muster GmbH", "text": "Ich bewerbe mich."}
     client = AufzeichnenderClient(
-        {"firma": "Beispiel AG", "text": "Ich bewerbe mich.\n\nMit besten Grüßen\nAlain"}
+        {
+            "firma": "Beispiel AG",
+            "text": "Ich bewerbe mich.\n\nMit besten Grüßen\nAlain",
+        }
     )
     werte = llm.generate_slot_texts(client, "m", _job(), slots, {"name": "Alain"})
     assert werte["text"] == "Ich bewerbe mich."

@@ -37,7 +37,9 @@ def make_cfg(tmp_path, cbks_inbox=None) -> Config:
     )
 
 
-def seed(cfg, status="selected", description="Wir suchen Verstärkung im Service.") -> int:
+def seed(
+    cfg, status="selected", description="Wir suchen Verstärkung im Service."
+) -> int:
     conn = db.connect(cfg.db_path)
     db.insert_job(
         conn,

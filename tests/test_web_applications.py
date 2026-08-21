@@ -122,7 +122,9 @@ def test_slot_speichern_unbekannt_meldet_deutsch(tmp_path):
     cfg = make_cfg(tmp_path)
     app_id = bewerbung_anlegen(cfg, seed(cfg))
     client = TestClient(create_app(cfg))
-    antwort = client.put(f"/applications/{app_id}/slots/gibtsnicht", data={"value": "x"})
+    antwort = client.put(
+        f"/applications/{app_id}/slots/gibtsnicht", data={"value": "x"}
+    )
     assert antwort.status_code == 400
     assert "Unbekannter Slot" in antwort.text
 
@@ -153,7 +155,9 @@ def test_export_laeuft_im_hintergrund(tmp_path):
     task = tasks_modul.get(task_id)
     assert task.status == "fertig", task.meldung
     assert (cfg.out_dir / "beispiel-ag" / "index.html").exists()
-    assert (cfg.out_dir / "beispiel-ag" / "Bewerbung_Alain Ritter_Beispiel AG.pdf").exists()
+    assert (
+        cfg.out_dir / "beispiel-ag" / "Bewerbung_Alain Ritter_Beispiel AG.pdf"
+    ).exists()
     assert "beispiel-ag" in task.ergebnis
 
 
@@ -259,9 +263,7 @@ def test_fehlermeldung_maskiert_html(tmp_path):
     cfg = make_cfg(tmp_path)
     app_id = bewerbung_anlegen(cfg, seed(cfg))
     client = TestClient(create_app(cfg))
-    antwort = client.put(
-        f"/applications/{app_id}/slots/<b>kaputt", data={"value": "x"}
-    )
+    antwort = client.put(f"/applications/{app_id}/slots/<b>kaputt", data={"value": "x"})
     assert antwort.status_code == 400
     assert "<b>kaputt" not in antwort.text
     assert "&lt;b&gt;kaputt" in antwort.text

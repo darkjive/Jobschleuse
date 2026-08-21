@@ -49,7 +49,8 @@ def parse_jobs(payload: dict) -> list[JobItem]:
         adresse = (lokationen[0].get("adresse") or {}) if lokationen else {}
         items.append(
             JobItem(
-                title=(entry.get("stellenangebotsTitel") or "").strip() or "(ohne Titel)",
+                title=(entry.get("stellenangebotsTitel") or "").strip()
+                or "(ohne Titel)",
                 company=(entry.get("firma") or "").strip() or "(unbekannt)",
                 location=(adresse.get("ort") or "").strip(),
                 url=url,
@@ -65,7 +66,9 @@ def parse_jobs(payload: dict) -> list[JobItem]:
                 contract=normalisierung.vertrag(entry),
                 worktime=normalisierung.arbeitszeit(entry),
                 distance_km=entry.get("entfernung"),
-                start_date=_parse_date((entry.get("eintrittszeitraum") or {}).get("von")),
+                start_date=_parse_date(
+                    (entry.get("eintrittszeitraum") or {}).get("von")
+                ),
                 changed_at=_parse_datetime(entry.get("aenderungsdatum")),
                 plz=(adresse.get("plz") or "").strip() or None,
             )

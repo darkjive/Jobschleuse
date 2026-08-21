@@ -20,7 +20,7 @@ _counter = itertools.count(1)
 class Task:
     id: str
     beschreibung: str
-    status: str = "läuft"          # "läuft" | "fertig" | "fehler"
+    status: str = "läuft"  # "läuft" | "fertig" | "fehler"
     meldung: str = ""
     ergebnis: object | None = field(default=None)
 

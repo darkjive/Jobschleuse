@@ -128,15 +128,15 @@ def test_fetch_details_wirft_bei_serverfehler(monkeypatch):
 
 
 def make_item(**overrides):
-    basis = dict(
-        title="Mechatroniker (m/w/d)",
-        company="AC Motoren GmbH",
-        location="Eppertshausen",
-        url="https://www.arbeitsagentur.de/jobsuche/jobdetail/10001-1",
-        source="arbeitsagentur",
-        source_ref="10001-1",
-        scraped_at=datetime.now(UTC),
-    )
+    basis = {
+        "title": "Mechatroniker (m/w/d)",
+        "company": "AC Motoren GmbH",
+        "location": "Eppertshausen",
+        "url": "https://www.arbeitsagentur.de/jobsuche/jobdetail/10001-1",
+        "source": "arbeitsagentur",
+        "source_ref": "10001-1",
+        "scraped_at": datetime.now(UTC),
+    }
     basis.update(overrides)
     return JobItem(**basis)
 
@@ -201,10 +201,17 @@ def test_fetch_jobs_reicht_suchparameter_durch(monkeypatch):
     monkeypatch.setattr(arbeitsagentur, "enrich", lambda items: items)
 
     arbeitsagentur.fetch_jobs(
-        was="Frontend", wo="Darmstadt", veroeffentlicht_seit=7,
-        ohne_zeitarbeit=True, nur_arbeit=True,
+        was="Frontend",
+        wo="Darmstadt",
+        veroeffentlicht_seit=7,
+        ohne_zeitarbeit=True,
+        nur_arbeit=True,
     )
-    assert gesehen == {"veroeffentlichtseit": 7, "zeitarbeit": "false", "angebotsart": 1}
+    assert gesehen == {
+        "veroeffentlichtseit": 7,
+        "zeitarbeit": "false",
+        "angebotsart": 1,
+    }
 
 
 def test_fetch_jobs_ohne_zusatzparameter(monkeypatch):

@@ -66,7 +66,9 @@ def _cmd_generate(args: argparse.Namespace) -> int:
 
     cfg = load_config()
     if not (cfg.llm_base_url and cfg.llm_api_key and cfg.llm_model):
-        print("LLM_BASE_URL, LLM_API_KEY und LLM_MODEL in .env setzen.", file=sys.stderr)
+        print(
+            "LLM_BASE_URL, LLM_API_KEY und LLM_MODEL in .env setzen.", file=sys.stderr
+        )
         return 1
     conn = db.connect(cfg.db_path)
     client = make_client(cfg.llm_base_url, cfg.llm_api_key)
@@ -100,12 +102,19 @@ def main(argv: list[str] | None = None) -> int:
     p_fetch.add_argument("--was", required=True, help="Suchbegriff, z. B. Beruf")
     p_fetch.add_argument("--wo", required=True, help="Ort")
     p_fetch.add_argument("--umkreis", type=int, default=25, help="Umkreis in km")
-    p_fetch.add_argument("--seit", type=int, default=None,
-                         help="nur Anzeigen der letzten N Tage")
-    p_fetch.add_argument("--ohne-zeitarbeit", action="store_true",
-                         help="Arbeitnehmerüberlassung ausblenden")
-    p_fetch.add_argument("--nur-arbeit", action="store_true",
-                         help="nur Arbeitsstellen, keine Ausbildungen")
+    p_fetch.add_argument(
+        "--seit", type=int, default=None, help="nur Anzeigen der letzten N Tage"
+    )
+    p_fetch.add_argument(
+        "--ohne-zeitarbeit",
+        action="store_true",
+        help="Arbeitnehmerüberlassung ausblenden",
+    )
+    p_fetch.add_argument(
+        "--nur-arbeit",
+        action="store_true",
+        help="nur Arbeitsstellen, keine Ausbildungen",
+    )
     p_fetch.set_defaults(func=_cmd_fetch)
 
     p_list = sub.add_parser("list", help="Stellen anzeigen")

@@ -244,7 +244,9 @@ def test_export_warnt_bei_fehlendem_asset(tmp_path, capsys):
     cfg = replace(cfg, template_path=vorlage)
     job_id = seed(cfg)
     conn = db.connect(cfg.db_path)
-    app_id = applications.create(conn, job_id, cfg, FakeClient({"firma": "Beispiel AG"}))
+    app_id = applications.create(
+        conn, job_id, cfg, FakeClient({"firma": "Beispiel AG"})
+    )
     applications.export(conn, app_id, cfg)
     assert "gibtsnicht.png" in capsys.readouterr().err
 

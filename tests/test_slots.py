@@ -23,7 +23,12 @@ def test_extract_duplicate_slot_raises():
 def test_fill_slots_replaces_only_slots():
     result = fill_slots(
         TEMPLATE,
-        {"firma": "Beispiel AG", "einstieg": "Neuer Einstieg.", "titel": "Bewerbung — Beispiel AG", "motivation": "Neue Motivation."},
+        {
+            "firma": "Beispiel AG",
+            "einstieg": "Neuer Einstieg.",
+            "titel": "Bewerbung — Beispiel AG",
+            "motivation": "Neue Motivation.",
+        },
     )
     assert "Beispiel AG" in result
     assert "AC Motoren GmbH" not in result
@@ -47,7 +52,7 @@ def test_fill_preserves_static_bytes_exactly():
         "<!DOCTYPE html>\n<html lang='de'>\n<head>\n"
         '  <meta charset="utf-8">\n'
         "  <style>.x  {color:red}</style>\n</head>\n<body>\n"
-        "  <p data-slot=\"gruss\">Alt</p>\n"
+        '  <p data-slot="gruss">Alt</p>\n'
         "  <br>\n  <img src='x.png'>\n"
         '  <svg viewBox="0 0 1 1"><path d="M0 0"/></svg>\n'
         "  <pre>  exakt   so  </pre>\n</body>\n</html>\n"

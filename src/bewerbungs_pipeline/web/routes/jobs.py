@@ -41,7 +41,9 @@ def liste(
         ort=ort or None,
         mit_verschwundenen=bool(verschwunden),
     )
-    return templates.TemplateResponse(request, "_stellenliste.html", {"stellen": stellen})
+    return templates.TemplateResponse(
+        request, "_stellenliste.html", {"stellen": stellen}
+    )
 
 
 @router.get("/jobs/{job_id}", response_class=HTMLResponse)

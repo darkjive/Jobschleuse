@@ -74,12 +74,12 @@ title: str
 company: str
 company_website: str | None
 location: str
-url: str                      # Link zur Anzeige
+url: str  # Link zur Anzeige
 source: str
 posted_at: date | None
 contact_name: str | None
 contact_email: str | None
-description_md: str           # Anzeige als Markdown/Klartext
+description_md: str  # Anzeige als Markdown/Klartext
 scraped_at: datetime
 ```
 

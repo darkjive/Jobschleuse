@@ -39,7 +39,10 @@ def test_gehalt_festgehalt_schlaegt_spanne():
     [
         ({"arbeitszeitVollzeit": True}, "Vollzeit"),
         ({"arbeitszeitTeilzeitFlexibel": True}, "Teilzeit"),
-        ({"arbeitszeitVollzeit": True, "arbeitszeitTeilzeitVormittag": True}, "Vollzeit/Teilzeit"),
+        (
+            {"arbeitszeitVollzeit": True, "arbeitszeitTeilzeitVormittag": True},
+            "Vollzeit/Teilzeit",
+        ),
         ({"arbeitszeitVollzeit": False, "arbeitszeitTeilzeitAbend": False}, None),
         ({}, None),
     ],
@@ -52,7 +55,10 @@ def test_arbeitszeit(entry, erwartet):
     "entry, erwartet",
     [
         ({"vertragsdauer": "UNBEFRISTET"}, "unbefristet"),
-        ({"vertragsdauer": "BEFRISTET", "befristungInMonaten": 12}, "befristet, 12 Monate"),
+        (
+            {"vertragsdauer": "BEFRISTET", "befristungInMonaten": 12},
+            "befristet, 12 Monate",
+        ),
         ({"vertragsdauer": "BEFRISTET"}, "befristet"),
         ({"vertragsdauer": "KEINE_ANGABE"}, None),
         ({}, None),
@@ -65,10 +71,25 @@ def test_vertrag(entry, erwartet):
 @pytest.mark.parametrize(
     "entry, erwartet",
     [
-        ({"istArbeitnehmerUeberlassung": True, "istPrivateArbeitsvermittlung": False}, "zeitarbeit"),
-        ({"istArbeitnehmerUeberlassung": True, "istPrivateArbeitsvermittlung": True}, "zeitarbeit"),
+        (
+            {
+                "istArbeitnehmerUeberlassung": True,
+                "istPrivateArbeitsvermittlung": False,
+            },
+            "zeitarbeit",
+        ),
+        (
+            {"istArbeitnehmerUeberlassung": True, "istPrivateArbeitsvermittlung": True},
+            "zeitarbeit",
+        ),
         ({"istPrivateArbeitsvermittlung": True}, "vermittler"),
-        ({"istArbeitnehmerUeberlassung": False, "istPrivateArbeitsvermittlung": False}, "arbeitgeber"),
+        (
+            {
+                "istArbeitnehmerUeberlassung": False,
+                "istPrivateArbeitsvermittlung": False,
+            },
+            "arbeitgeber",
+        ),
         ({}, None),
     ],
 )

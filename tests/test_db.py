@@ -9,15 +9,15 @@ from bewerbungs_pipeline.models import JobItem
 
 
 def make_item(**overrides) -> JobItem:
-    base = dict(
-        title="Mechatroniker (m/w/d)",
-        company="AC Motoren GmbH",
-        location="Eppertshausen",
-        url="https://www.arbeitsagentur.de/jobsuche/jobdetail/10001-1",
-        source="arbeitsagentur",
-        source_ref="10001-1",
-        scraped_at=datetime.now(UTC),
-    )
+    base = {
+        "title": "Mechatroniker (m/w/d)",
+        "company": "AC Motoren GmbH",
+        "location": "Eppertshausen",
+        "url": "https://www.arbeitsagentur.de/jobsuche/jobdetail/10001-1",
+        "source": "arbeitsagentur",
+        "source_ref": "10001-1",
+        "scraped_at": datetime.now(UTC),
+    }
     base.update(overrides)
     return JobItem(**base)
 
@@ -43,7 +43,9 @@ def test_dedupe_same_url(conn):
 
 def test_dedupe_cross_source_same_job(conn):
     db.insert_job(conn, make_item())
-    dup = make_item(url="https://andere-quelle.de/job/1", source_ref=None, source="career:acme")
+    dup = make_item(
+        url="https://andere-quelle.de/job/1", source_ref=None, source="career:acme"
+    )
     assert db.insert_job(conn, dup) is False
 
 
@@ -221,7 +223,14 @@ def test_migration_ist_wiederholbar(tmp_path):
 
 
 def test_insert_job_schreibt_neue_spalten(conn):
-    db.insert_job(conn, make_item(source_partner="XING GmbH & Co. KG", employer_kind="vermittler", distance_km=42))
+    db.insert_job(
+        conn,
+        make_item(
+            source_partner="XING GmbH & Co. KG",
+            employer_kind="vermittler",
+            distance_km=42,
+        ),
+    )
     zeile = conn.execute("SELECT * FROM jobs").fetchone()
     assert zeile["source_partner"] == "XING GmbH & Co. KG"
     assert zeile["employer_kind"] == "vermittler"
@@ -229,7 +238,9 @@ def test_insert_job_schreibt_neue_spalten(conn):
 
 
 def test_row_to_item_liest_neue_spalten(conn):
-    db.insert_job(conn, make_item(source_partner="XING GmbH & Co. KG", salary="ab 19,78 €/h"))
+    db.insert_job(
+        conn, make_item(source_partner="XING GmbH & Co. KG", salary="ab 19,78 €/h")
+    )
     item = db.row_to_item(conn.execute("SELECT * FROM jobs").fetchone())
     assert item.source_partner == "XING GmbH & Co. KG"
     assert item.salary == "ab 19,78 €/h"
@@ -244,7 +255,9 @@ def test_offene_referenzen_und_mark_gone(conn):
 
     assert db.mark_gone(conn, {"ref-a"}) == 1
     assert db.offene_referenzen(conn) == ["ref-b"]
-    zeile = conn.execute("SELECT gone_at FROM jobs WHERE source_ref = 'ref-a'").fetchone()
+    zeile = conn.execute(
+        "SELECT gone_at FROM jobs WHERE source_ref = 'ref-a'"
+    ).fetchone()
     assert zeile["gone_at"] is not None
 
 

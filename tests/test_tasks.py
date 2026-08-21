@@ -58,6 +58,10 @@ def test_get_returns_a_copy_not_shared_reference():
 
     # Interner Zustand muss unverändert sein
     original = tasks.get(task_id)
-    assert original.status == "fertig", "Status wurde durch Änderung der Kopie beeinflusst!"
+    assert original.status == "fertig", (
+        "Status wurde durch Änderung der Kopie beeinflusst!"
+    )
     assert original.meldung == "", "Meldung wurde durch Änderung der Kopie beeinflusst!"
-    assert original.ergebnis == 42, "Ergebnis wurde durch Änderung der Kopie beeinflusst!"
+    assert original.ergebnis == 42, (
+        "Ergebnis wurde durch Änderung der Kopie beeinflusst!"
+    )

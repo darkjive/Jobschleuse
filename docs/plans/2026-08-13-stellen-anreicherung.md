@@ -100,7 +100,10 @@ def test_gehalt_festgehalt_schlaegt_spanne():
     [
         ({"arbeitszeitVollzeit": True}, "Vollzeit"),
         ({"arbeitszeitTeilzeitFlexibel": True}, "Teilzeit"),
-        ({"arbeitszeitVollzeit": True, "arbeitszeitTeilzeitVormittag": True}, "Vollzeit/Teilzeit"),
+        (
+            {"arbeitszeitVollzeit": True, "arbeitszeitTeilzeitVormittag": True},
+            "Vollzeit/Teilzeit",
+        ),
         ({"arbeitszeitVollzeit": False, "arbeitszeitTeilzeitAbend": False}, None),
         ({}, None),
     ],
@@ -113,7 +116,10 @@ def test_arbeitszeit(entry, erwartet):
     "entry, erwartet",
     [
         ({"vertragsdauer": "UNBEFRISTET"}, "unbefristet"),
-        ({"vertragsdauer": "BEFRISTET", "befristungInMonaten": 12}, "befristet, 12 Monate"),
+        (
+            {"vertragsdauer": "BEFRISTET", "befristungInMonaten": 12},
+            "befristet, 12 Monate",
+        ),
         ({"vertragsdauer": "BEFRISTET"}, "befristet"),
         ({"vertragsdauer": "KEINE_ANGABE"}, None),
         ({}, None),
@@ -126,10 +132,25 @@ def test_vertrag(entry, erwartet):
 @pytest.mark.parametrize(
     "entry, erwartet",
     [
-        ({"istArbeitnehmerUeberlassung": True, "istPrivateArbeitsvermittlung": False}, "zeitarbeit"),
-        ({"istArbeitnehmerUeberlassung": True, "istPrivateArbeitsvermittlung": True}, "zeitarbeit"),
+        (
+            {
+                "istArbeitnehmerUeberlassung": True,
+                "istPrivateArbeitsvermittlung": False,
+            },
+            "zeitarbeit",
+        ),
+        (
+            {"istArbeitnehmerUeberlassung": True, "istPrivateArbeitsvermittlung": True},
+            "zeitarbeit",
+        ),
         ({"istPrivateArbeitsvermittlung": True}, "vermittler"),
-        ({"istArbeitnehmerUeberlassung": False, "istPrivateArbeitsvermittlung": False}, "arbeitgeber"),
+        (
+            {
+                "istArbeitnehmerUeberlassung": False,
+                "istPrivateArbeitsvermittlung": False,
+            },
+            "arbeitgeber",
+        ),
         ({}, None),
     ],
 )
@@ -425,7 +446,14 @@ def test_migration_ist_wiederholbar(tmp_path):
 
 
 def test_insert_job_schreibt_neue_spalten(conn):
-    db.insert_job(conn, make_item(source_partner="XING GmbH & Co. KG", employer_kind="vermittler", distance_km=42))
+    db.insert_job(
+        conn,
+        make_item(
+            source_partner="XING GmbH & Co. KG",
+            employer_kind="vermittler",
+            distance_km=42,
+        ),
+    )
     zeile = conn.execute("SELECT * FROM jobs").fetchone()
     assert zeile["source_partner"] == "XING GmbH & Co. KG"
     assert zeile["employer_kind"] == "vermittler"
@@ -433,7 +461,9 @@ def test_insert_job_schreibt_neue_spalten(conn):
 
 
 def test_row_to_item_liest_neue_spalten(conn):
-    db.insert_job(conn, make_item(source_partner="XING GmbH & Co. KG", salary="ab 19,78 €/h"))
+    db.insert_job(
+        conn, make_item(source_partner="XING GmbH & Co. KG", salary="ab 19,78 €/h")
+    )
     item = db.row_to_item(conn.execute("SELECT * FROM jobs").fetchone())
     assert item.source_partner == "XING GmbH & Co. KG"
     assert item.salary == "ab 19,78 €/h"
@@ -448,7 +478,9 @@ def test_offene_referenzen_und_mark_gone(conn):
 
     assert db.mark_gone(conn, {"ref-a"}) == 1
     assert db.offene_referenzen(conn) == ["ref-b"]
-    zeile = conn.execute("SELECT gone_at FROM jobs WHERE source_ref = 'ref-a'").fetchone()
+    zeile = conn.execute(
+        "SELECT gone_at FROM jobs WHERE source_ref = 'ref-a'"
+    ).fetchone()
     assert zeile["gone_at"] is not None
 
 
@@ -549,7 +581,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         # Spaltenweise statt Tabellenneubau: die Bestandsdatenbank haengt an
         # Bewerbungen, die einen Fremdschluessel auf jobs.id halten.
         vorhanden = {
-            zeile["name"] for zeile in conn.execute("PRAGMA table_info(jobs)").fetchall()
+            zeile["name"]
+            for zeile in conn.execute("PRAGMA table_info(jobs)").fetchall()
         }
         for name, typ in NEUE_SPALTEN_V2:
             if name not in vorhanden:
@@ -702,7 +735,9 @@ def row_to_item(row: sqlite3.Row) -> JobItem:
         worktime=row["worktime"],
         distance_km=row["distance_km"],
         start_date=date.fromisoformat(row["start_date"]) if row["start_date"] else None,
-        changed_at=datetime.fromisoformat(row["changed_at"]) if row["changed_at"] else None,
+        changed_at=datetime.fromisoformat(row["changed_at"])
+        if row["changed_at"]
+        else None,
         street=row["street"],
         plz=row["plz"],
         education=row["education"],
@@ -839,7 +874,8 @@ def parse_jobs(payload: dict) -> list[JobItem]:
         adresse = (lokationen[0].get("adresse") or {}) if lokationen else {}
         items.append(
             JobItem(
-                title=(entry.get("stellenangebotsTitel") or "").strip() or "(ohne Titel)",
+                title=(entry.get("stellenangebotsTitel") or "").strip()
+                or "(ohne Titel)",
                 company=(entry.get("firma") or "").strip() or "(unbekannt)",
                 location=(adresse.get("ort") or "").strip(),
                 url=url,
@@ -855,7 +891,9 @@ def parse_jobs(payload: dict) -> list[JobItem]:
                 contract=normalisierung.vertrag(entry),
                 worktime=normalisierung.arbeitszeit(entry),
                 distance_km=entry.get("entfernung"),
-                start_date=_parse_date((entry.get("eintrittszeitraum") or {}).get("von")),
+                start_date=_parse_date(
+                    (entry.get("eintrittszeitraum") or {}).get("von")
+                ),
                 changed_at=_parse_datetime(entry.get("aenderungsdatum")),
                 plz=(adresse.get("plz") or "").strip() or None,
             )
@@ -1006,7 +1044,10 @@ def ensure_description(conn, row) -> sqlite3.Row:
             # Anzeige ist bei der Quelle verschwunden — vermerken und mit dem
             # arbeiten, was gespeichert ist.
             dbmod.mark_gone(conn, {row["source_ref"]})
-            print("Warnung: Anzeige ist bei der Quelle nicht mehr vorhanden.", file=sys.stderr)
+            print(
+                "Warnung: Anzeige ist bei der Quelle nicht mehr vorhanden.",
+                file=sys.stderr,
+            )
             return dbmod.get_job(conn, row["id"])
         text = payload.get("stellenangebotsBeschreibung") or ""
         if text:
@@ -1127,10 +1168,17 @@ def test_fetch_jobs_reicht_suchparameter_durch(monkeypatch):
     monkeypatch.setattr(arbeitsagentur, "enrich", lambda items: items)
 
     arbeitsagentur.fetch_jobs(
-        was="Frontend", wo="Darmstadt", veroeffentlicht_seit=7,
-        ohne_zeitarbeit=True, nur_arbeit=True,
+        was="Frontend",
+        wo="Darmstadt",
+        veroeffentlicht_seit=7,
+        ohne_zeitarbeit=True,
+        nur_arbeit=True,
     )
-    assert gesehen == {"veroeffentlichtseit": 7, "zeitarbeit": "false", "angebotsart": 1}
+    assert gesehen == {
+        "veroeffentlichtseit": 7,
+        "zeitarbeit": "false",
+        "angebotsart": 1,
+    }
 
 
 def test_fetch_jobs_ohne_zusatzparameter(monkeypatch):
@@ -1337,11 +1385,15 @@ def test_suche_markiert_verschwundene(tmp_path, monkeypatch):
     monkeypatch.setattr(arbeitsagentur, "fetch_jobs", lambda **kw: [])
     monkeypatch.setattr(arbeitsagentur, "check_alive", lambda refnrs: {"ref-weg"})
 
-    meldung = jobs_routen.suche_ausfuehren(cfg, "Frontend", "Darmstadt", 50, None, False, False)
+    meldung = jobs_routen.suche_ausfuehren(
+        cfg, "Frontend", "Darmstadt", 50, None, False, False
+    )
     assert "1 nicht mehr verfügbar" in meldung
 
     conn = db.connect(cfg.db_path)
-    zeile = conn.execute("SELECT gone_at FROM jobs WHERE source_ref = 'ref-weg'").fetchone()
+    zeile = conn.execute(
+        "SELECT gone_at FROM jobs WHERE source_ref = 'ref-weg'"
+    ).fetchone()
     assert zeile["gone_at"] is not None
     conn.close()
 
@@ -1350,8 +1402,10 @@ def test_liste_blendet_verschwundene_aus(tmp_path):
     cfg = make_cfg(tmp_path)
     ids = seed(cfg)
     conn = db.connect(cfg.db_path)
-    conn.execute("UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?",
-                 (list(ids.values())[0],))
+    conn.execute(
+        "UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?",
+        (list(ids.values())[0],),
+    )
     conn.commit()
     conn.close()
 
@@ -1388,7 +1442,9 @@ def liste(
         ort=ort or None,
         mit_verschwundenen=bool(verschwunden),
     )
-    return templates.TemplateResponse(request, "_stellenliste.html", {"stellen": stellen})
+    return templates.TemplateResponse(
+        request, "_stellenliste.html", {"stellen": stellen}
+    )
 ```
 
 `suche_ausfuehren` und `fetch` ersetzen:
@@ -1491,12 +1547,15 @@ def _cmd_check(args: argparse.Namespace) -> int:
 Im Argumentparser die `fetch`-Optionen ergänzen und den Befehl `check` anmelden:
 
 ```python
-    p_fetch.add_argument("--seit", type=int, default=None,
-                         help="nur Anzeigen der letzten N Tage")
-    p_fetch.add_argument("--ohne-zeitarbeit", action="store_true",
-                         help="Arbeitnehmerüberlassung ausblenden")
-    p_fetch.add_argument("--nur-arbeit", action="store_true",
-                         help="nur Arbeitsstellen, keine Ausbildungen")
+p_fetch.add_argument(
+    "--seit", type=int, default=None, help="nur Anzeigen der letzten N Tage"
+)
+p_fetch.add_argument(
+    "--ohne-zeitarbeit", action="store_true", help="Arbeitnehmerüberlassung ausblenden"
+)
+p_fetch.add_argument(
+    "--nur-arbeit", action="store_true", help="nur Arbeitsstellen, keine Ausbildungen"
+)
 ```
 
 (direkt vor `p_fetch.set_defaults(func=_cmd_fetch)` einfügen)
@@ -1525,7 +1584,9 @@ def test_check_markiert_verschwundene(env, monkeypatch, capsys):
 
     monkeypatch.setattr(cli.arbeitsagentur, "check_alive", lambda refnrs: {"ref-weg"})
     assert cli.main(["check"]) == 0
-    assert "1 Stellen sind bei der Quelle nicht mehr vorhanden." in capsys.readouterr().out
+    assert (
+        "1 Stellen sind bei der Quelle nicht mehr vorhanden." in capsys.readouterr().out
+    )
 
 
 def test_fetch_reicht_neue_optionen_durch(env, monkeypatch, capsys):
@@ -1537,10 +1598,19 @@ def test_fetch_reicht_neue_optionen_durch(env, monkeypatch, capsys):
 
     monkeypatch.setattr(cli.arbeitsagentur, "fetch_jobs", falsches_holen)
     monkeypatch.setattr(cli.arbeitsagentur, "check_alive", lambda refnrs: set())
-    cli.main([
-        "fetch", "--was", "Frontend", "--wo", "Darmstadt",
-        "--seit", "7", "--ohne-zeitarbeit", "--nur-arbeit",
-    ])
+    cli.main(
+        [
+            "fetch",
+            "--was",
+            "Frontend",
+            "--wo",
+            "Darmstadt",
+            "--seit",
+            "7",
+            "--ohne-zeitarbeit",
+            "--nur-arbeit",
+        ]
+    )
     assert gesehen["veroeffentlicht_seit"] == 7
     assert gesehen["ohne_zeitarbeit"] is True
     assert gesehen["nur_arbeit"] is True
@@ -1627,8 +1697,10 @@ def test_liste_markiert_verschwundene(tmp_path):
     cfg = make_cfg(tmp_path)
     ids = seed(cfg)
     conn = db.connect(cfg.db_path)
-    conn.execute("UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?",
-                 (list(ids.values())[0],))
+    conn.execute(
+        "UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?",
+        (list(ids.values())[0],),
+    )
     conn.commit()
     conn.close()
 
@@ -1816,7 +1888,9 @@ def test_detail_warnt_bei_verschwundener_stelle(tmp_path):
     ids = seed(cfg)
     job_id = list(ids.values())[0]
     conn = db.connect(cfg.db_path)
-    conn.execute("UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?", (job_id,))
+    conn.execute(
+        "UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?", (job_id,)
+    )
     conn.commit()
     conn.close()
 
