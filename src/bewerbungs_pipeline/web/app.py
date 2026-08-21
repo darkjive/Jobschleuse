@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -10,6 +11,29 @@ from ..config import Config
 
 HIER = Path(__file__).parent
 templates = Jinja2Templates(directory=str(HIER / "templates"))
+
+
+def _alter(wert: str | None) -> str | None:
+    """ISO-Zeitstempel → 'heute' / 'vor 3 Tagen' / 'vor 5 Wochen'."""
+    if not wert:
+        return None
+    try:
+        zeitpunkt = datetime.fromisoformat(wert)
+    except ValueError:
+        return None
+    if zeitpunkt.tzinfo is None:
+        zeitpunkt = zeitpunkt.replace(tzinfo=UTC)
+    tage = (datetime.now(UTC) - zeitpunkt).days
+    if tage <= 0:
+        return "heute"
+    if tage == 1:
+        return "gestern"
+    if tage < 14:
+        return f"vor {tage} Tagen"
+    return f"vor {tage // 7} Wochen"
+
+
+templates.env.filters["alter"] = _alter
 
 
 def get_conn(request: Request) -> sqlite3.Connection:

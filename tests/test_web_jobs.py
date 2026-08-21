@@ -280,3 +280,47 @@ def test_task_status_reicht_outerhtml_durch(tmp_path):
         params={"ziel": "/x", "ziel_element": "#slot-titel", "ziel_swap": "outerHTML"},
     )
     assert 'hx-swap="outerHTML"' in antwort.text
+
+
+def test_liste_zeigt_kennzeichen(tmp_path):
+    cfg = make_cfg(tmp_path)
+    conn = db.connect(cfg.db_path)
+    conn.execute(
+        "INSERT INTO jobs (url, dedupe_hash, source_ref, title, company, location,"
+        " source, scraped_at, source_partner, employer_kind, homeoffice, salary,"
+        " contract, distance_km) VALUES ('http://a', 'h1', 'ref-a', 'Titel', 'Firma',"
+        " 'Ort', 'arbeitsagentur', '2026-08-13T00:00:00+00:00', 'XING GmbH & Co. KG',"
+        " 'vermittler', 'NACH_VEREINBARUNG', 'ab 19,78 €/h', 'unbefristet', 42)"
+    )
+    conn.commit()
+    conn.close()
+
+    text = TestClient(create_app(cfg)).get("/jobs").text
+    assert "XING GmbH &amp; Co. KG" in text
+    assert "Vermittler" in text
+    assert "Homeoffice" in text
+    assert "ab 19,78" in text
+    assert "42 km" in text
+
+
+def test_liste_zeigt_leere_felder_nicht(tmp_path):
+    """Eine duenn belegte Stelle bekommt keine Kennzeichen mit 'None' darin."""
+    cfg = make_cfg(tmp_path)
+    seed(cfg)
+    text = TestClient(create_app(cfg)).get("/jobs").text
+    assert "None" not in text
+    assert "Vermittler" not in text
+
+
+def test_liste_markiert_verschwundene(tmp_path):
+    cfg = make_cfg(tmp_path)
+    ids = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    conn.execute("UPDATE jobs SET gone_at = '2026-08-13T00:00:00+00:00' WHERE id = ?",
+                 (list(ids.values())[0],))
+    conn.commit()
+    conn.close()
+
+    text = TestClient(create_app(cfg)).get("/jobs?verschwunden=1").text
+    assert "nicht mehr verfügbar" in text
+    assert "stelle--weg" in text

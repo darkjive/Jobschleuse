@@ -112,6 +112,25 @@ a { color: var(--accent); }
 
 .stelle__status--selected { color: var(--accent); }
 
+.marken { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.15rem; }
+
+.marke {
+  font-size: 0.7rem;
+  line-height: 1.5;
+  padding: 0 0.4rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.marke--quelle { color: var(--text); border-color: var(--text-dim); }
+.marke--warnung { color: var(--accent); border-color: var(--accent); }
+.marke--weg { color: var(--text); background: var(--bg-hover); }
+
+.stelle--weg { opacity: 0.55; }
+.stelle--weg .stelle__titel { text-decoration: line-through; }
+
 .detail__aktionen { display: flex; gap: 0.5rem; margin: 1rem 0; }
 
 .detail__text {
