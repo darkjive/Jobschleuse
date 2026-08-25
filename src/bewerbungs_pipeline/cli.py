@@ -3,7 +3,7 @@ import sys
 
 from . import db
 from .config import load_config
-from .sources import arbeitsagentur
+from .sources import arbeitsagentur, indeed
 
 
 def _cmd_fetch(args: argparse.Namespace) -> int:
@@ -20,6 +20,21 @@ def _cmd_fetch(args: argparse.Namespace) -> int:
     inserted = sum(1 for item in items if db.insert_job(conn, item))
     weg = db.mark_gone(conn, arbeitsagentur.check_alive(db.offene_referenzen(conn)))
     print(f"{len(items)} Stellen geholt, {inserted} neu, {weg} nicht mehr verfügbar.")
+    return 0
+
+
+def _cmd_fetch_indeed(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    conn = db.connect(cfg.db_path)
+    items = indeed.fetch_jobs(
+        was=args.was,
+        wo=args.wo,
+        umkreis=args.umkreis,
+        seit_stunden=args.seit * 24 if args.seit else None,
+        ergebnisse=args.ergebnisse,
+    )
+    inserted = sum(1 for item in items if db.insert_job(conn, item))
+    print(f"{len(items)} Stellen geholt, {inserted} neu.")
     return 0
 
 
@@ -86,11 +101,11 @@ def _cmd_serve(args: argparse.Namespace) -> int:
 
     cfg = load_config()
     app = create_app(cfg)
-    adresse = f"http://127.0.0.1:{args.port}"
+    adresse = f"http://{args.host}:{args.port}"
     print(f"Bewerbungs-App läuft auf {adresse} — mit Strg+C beenden.")
     if not args.no_browser:
-        webbrowser.open(adresse)
-    uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
+        webbrowser.open(f"http://127.0.0.1:{args.port}")
+    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
     return 0
 
 
@@ -117,6 +132,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_fetch.set_defaults(func=_cmd_fetch)
 
+    p_fetch_indeed = sub.add_parser("fetch-indeed", help="Stellen von Indeed holen")
+    p_fetch_indeed.add_argument("--was", required=True, help="Suchbegriff, z. B. Beruf")
+    p_fetch_indeed.add_argument("--wo", required=True, help="Ort")
+    p_fetch_indeed.add_argument("--umkreis", type=int, default=25, help="Umkreis in km")
+    p_fetch_indeed.add_argument(
+        "--seit", type=int, default=None, help="nur Anzeigen der letzten N Tage"
+    )
+    p_fetch_indeed.add_argument(
+        "--ergebnisse", type=int, default=25, help="maximale Trefferzahl"
+    )
+    p_fetch_indeed.set_defaults(func=_cmd_fetch_indeed)
+
     p_list = sub.add_parser("list", help="Stellen anzeigen")
     p_list.add_argument("--status", choices=sorted(db.STATUSES), default=None)
     p_list.set_defaults(func=_cmd_list)
@@ -138,6 +165,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p_serve = sub.add_parser("serve", help="Weboberfläche starten")
     p_serve.add_argument("--port", type=int, default=8765)
+    p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--no-browser", action="store_true")
     p_serve.set_defaults(func=_cmd_serve)
 

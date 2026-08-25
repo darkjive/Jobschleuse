@@ -1,3 +1,4 @@
+{% macro inhalt(stelle, bewerbung) %}
 <article class="detail__inhalt">
   <h2>{{ stelle.title }}</h2>
   <p class="stelle__meta">{{ stelle.company }} · {{ stelle.location }}</p>
@@ -37,9 +38,9 @@
 
   <div class="detail__aktionen">
     <button class="knopf" hx-post="/jobs/{{ stelle.id }}/pick"
-            hx-target="#stellendetail">Auswählen</button>
+            hx-target="closest article" hx-swap="outerHTML">Auswählen</button>
     <button class="knopf" hx-post="/jobs/{{ stelle.id }}/reject"
-            hx-target="#stellendetail">Aussortieren</button>
+            hx-target="closest article" hx-swap="outerHTML">Aussortieren</button>
     {% if bewerbung %}
       <a class="knopf knopf--haupt" href="/bewerbung/{{ bewerbung.id }}">Bewerbung öffnen</a>
     {% elif stelle.status == "selected" %}
@@ -53,3 +54,11 @@
 
   <pre class="detail__text">{{ stelle.description_md }}</pre>
 </article>
+{% endmacro %}
+{{ inhalt(stelle, bewerbung) }}
+{# Desktop-Panel bekommt dieselbe Ansicht per Out-of-Band-Swap — unabhaengig
+   davon, ob der ausloesende Klick aus der Desktop-Spalte oder aus dem
+   Akkordeon-Eintrag der mobilen Liste kam (siehe _stellenliste.html). #}
+<section id="stellendetail" class="detail" hx-swap-oob="true">
+  {{ inhalt(stelle, bewerbung) }}
+</section>

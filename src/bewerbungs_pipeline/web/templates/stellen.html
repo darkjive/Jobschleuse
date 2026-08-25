@@ -2,6 +2,10 @@
 
 {% block kopfaktionen %}
 <form class="suchform" hx-post="/jobs/fetch" hx-target="#fortschritt">
+  <select name="quelle" aria-label="Quelle">
+    <option value="arbeitsagentur">Arbeitsagentur</option>
+    <option value="indeed">Indeed</option>
+  </select>
   <input type="search" name="was" placeholder="Was, z. B. Frontend Entwickler"
          aria-label="Wonach suchen" required>
   <input type="search" name="wo" placeholder="Wo, z. B. Darmstadt"
@@ -16,6 +20,7 @@
   <label class="haken"><input type="checkbox" name="ohne_zeitarbeit" value="1"> ohne Zeitarbeit</label>
   <label class="haken"><input type="checkbox" name="nur_arbeit" value="1"> keine Ausbildung</label>
   <button class="knopf knopf--haupt" type="submit">Stellen suchen</button>
+  <p class="hinweis">„ohne Zeitarbeit“ und „keine Ausbildung“ gelten nur für die Arbeitsagentur.</p>
 </form>
 <div id="fortschritt" aria-live="polite"></div>
 {% endblock %}

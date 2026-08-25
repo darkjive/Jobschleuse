@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse
 
 from ... import applications, db, tasks
 from ...config import Config
-from ...sources import arbeitsagentur
+from ...sources import arbeitsagentur, indeed
 from ..app import get_conn, templates
 
 router = APIRouter()
@@ -102,6 +102,28 @@ def suche_ausfuehren(
     return f"{len(items)} Stellen geholt, {neu} neu, {weg} nicht mehr verfügbar."
 
 
+def suche_indeed_ausfuehren(
+    cfg: Config,
+    was: str,
+    wo: str,
+    umkreis: int,
+    seit_tage: int | None,
+) -> str:
+    """Läuft im Hintergrund-Thread — öffnet deshalb eine eigene Verbindung."""
+    items = indeed.fetch_jobs(
+        was=was,
+        wo=wo,
+        umkreis=umkreis,
+        seit_stunden=seit_tage * 24 if seit_tage else None,
+    )
+    conn = db.connect(cfg.db_path)
+    try:
+        neu = sum(1 for item in items if db.insert_job(conn, item))
+    finally:
+        conn.close()
+    return f"{len(items)} Stellen geholt, {neu} neu."
+
+
 @router.post("/jobs/fetch", response_class=HTMLResponse)
 def fetch(
     request: Request,
@@ -111,19 +133,31 @@ def fetch(
     seit: str = Form(""),
     ohne_zeitarbeit: str = Form(""),
     nur_arbeit: str = Form(""),
+    quelle: str = Form("arbeitsagentur"),
 ):
     cfg = request.app.state.cfg
-    task_id = tasks.start(
-        f"Suche „{was}“ in {wo}",
-        suche_ausfuehren,
-        cfg,
-        was,
-        wo,
-        umkreis,
-        int(seit) if seit else None,
-        bool(ohne_zeitarbeit),
-        bool(nur_arbeit),
-    )
+    if quelle == "indeed":
+        task_id = tasks.start(
+            f"Indeed-Suche „{was}“ in {wo}",
+            suche_indeed_ausfuehren,
+            cfg,
+            was,
+            wo,
+            umkreis,
+            int(seit) if seit else None,
+        )
+    else:
+        task_id = tasks.start(
+            f"Suche „{was}“ in {wo}",
+            suche_ausfuehren,
+            cfg,
+            was,
+            wo,
+            umkreis,
+            int(seit) if seit else None,
+            bool(ohne_zeitarbeit),
+            bool(nur_arbeit),
+        )
     return templates.TemplateResponse(
         request,
         "_fortschritt.html",

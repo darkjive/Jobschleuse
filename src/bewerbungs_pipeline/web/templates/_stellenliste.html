@@ -6,7 +6,8 @@
       <li class="stelle {% if stelle.gone_at %}stelle--weg{% endif %}"
           id="stelle-{{ stelle.id }}">
         <button class="stelle__titel" hx-get="/jobs/{{ stelle.id }}"
-                hx-target="#stellendetail">
+                hx-target="#stelle-detail-{{ stelle.id }}" hx-swap="innerHTML"
+                hx-on::before-request="document.querySelectorAll('.stelle__inline-detail').forEach(el => el.innerHTML = '')">
           {{ stelle.title }}
         </button>
         <span class="stelle__meta">{{ stelle.company }} · {{ stelle.location }}</span>
@@ -41,6 +42,8 @@
         <span class="stelle__status stelle__status--{{ stelle.status }}">
           {{ stelle.status }}
         </span>
+
+        <div class="stelle__inline-detail" id="stelle-detail-{{ stelle.id }}"></div>
       </li>
     {% endfor %}
   </ul>

@@ -195,6 +195,48 @@ def test_fetch_liefert_fortschritt_mit_task_id(tmp_path, monkeypatch):
     assert _warte_auf_task(task_id).status == "fertig"
 
 
+def test_suche_indeed_ausfuehren_schreibt_stellen(tmp_path, monkeypatch):
+    from bewerbungs_pipeline.web.routes import jobs as jobs_routen
+
+    cfg = make_cfg(tmp_path)
+    db.connect(cfg.db_path).close()
+
+    def fake_fetch(**kwargs):
+        return [
+            JobItem(
+                title="Indeed-Stelle (m/w/d)",
+                company="Indeed GmbH",
+                location="Mainz",
+                url="https://de.indeed.com/viewjob?jk=xyz",
+                source="indeed",
+                description_md="Text.",
+                scraped_at=datetime.now(UTC),
+            )
+        ]
+
+    monkeypatch.setattr(jobs_routen.indeed, "fetch_jobs", fake_fetch)
+    meldung = jobs_routen.suche_indeed_ausfuehren(cfg, "Entwickler", "Mainz", 25, None)
+
+    assert "1" in meldung
+    conn = db.connect(cfg.db_path)
+    assert any(r["title"] == "Indeed-Stelle (m/w/d)" for r in db.list_jobs(conn))
+
+
+def test_fetch_route_verzweigt_auf_indeed(tmp_path, monkeypatch):
+    from bewerbungs_pipeline.web.routes import jobs as jobs_routen
+
+    cfg = make_cfg(tmp_path)
+    monkeypatch.setattr(jobs_routen.indeed, "fetch_jobs", lambda **kw: [])
+    client = TestClient(create_app(cfg))
+    antwort = client.post(
+        "/jobs/fetch",
+        data={"was": "Entwickler", "wo": "Mainz", "umkreis": "25", "quelle": "indeed"},
+    )
+    assert antwort.status_code == 200
+    task_id = re.search(r"/tasks/(\w+)", antwort.text).group(1)
+    assert _warte_auf_task(task_id).status == "fertig"
+
+
 def test_task_status_unbekannt_meldet_deutsch(tmp_path):
     cfg = make_cfg(tmp_path)
     client = TestClient(create_app(cfg))
