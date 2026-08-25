@@ -40,11 +40,11 @@ def test_parse_jobs_maps_fields():
     assert item.description_md == "Stellenbeschreibung"
 
 
-def test_parse_jobs_prefers_direct_url_and_sets_external_host():
+def test_parse_jobs_keeps_unique_job_url_and_sets_external_host():
     items = indeed.parse_jobs(
         [_row(job_url_direct="https://karriere.beispiel.de/job/42")]
     )
-    assert items[0].url == "https://karriere.beispiel.de/job/42"
+    assert items[0].url == "https://de.indeed.com/viewjob?jk=abc123"
     assert items[0].external_host == "karriere.beispiel.de"
 
 
@@ -71,6 +71,11 @@ def test_gehalt_range():
 def test_gehalt_ab_wert_ohne_intervall():
     row = _row(min_amount=20, max_amount=None, currency="EUR", interval=None)
     assert indeed.gehalt(row) == "ab 20 EUR"
+
+
+def test_gehalt_bis_wert_wenn_nur_maximum_bekannt():
+    row = _row(min_amount=None, max_amount=50000, currency="EUR", interval="yearly")
+    assert indeed.gehalt(row) == "bis 50.000 EUR/Jahr"
 
 
 def test_gehalt_none_wenn_keine_angabe():

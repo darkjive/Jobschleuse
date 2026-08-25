@@ -114,7 +114,7 @@ def suche_indeed_ausfuehren(
         was=was,
         wo=wo,
         umkreis=umkreis,
-        seit_stunden=seit_tage * 24 if seit_tage else None,
+        seit_stunden=seit_tage * 24 if seit_tage is not None else None,
     )
     conn = db.connect(cfg.db_path)
     try:

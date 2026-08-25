@@ -38,9 +38,9 @@
 
   <div class="detail__aktionen">
     <button class="knopf" hx-post="/jobs/{{ stelle.id }}/pick"
-            hx-target="closest article" hx-swap="outerHTML">Auswählen</button>
+            hx-target="#stelle-detail-{{ stelle.id }}" hx-swap="innerHTML">Auswählen</button>
     <button class="knopf" hx-post="/jobs/{{ stelle.id }}/reject"
-            hx-target="closest article" hx-swap="outerHTML">Aussortieren</button>
+            hx-target="#stelle-detail-{{ stelle.id }}" hx-swap="innerHTML">Aussortieren</button>
     {% if bewerbung %}
       <a class="knopf knopf--haupt" href="/bewerbung/{{ bewerbung.id }}">Bewerbung öffnen</a>
     {% elif stelle.status == "selected" %}

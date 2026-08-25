@@ -62,7 +62,9 @@ def gehalt(row: dict) -> str | None:
     zeitraum = f"/{einheit}" if einheit else ""
     if minimum is not None and maximum is not None and minimum != maximum:
         return f"{_betrag(minimum)}–{_betrag(maximum)} {waehrung}{zeitraum}"
-    betrag = maximum if maximum is not None else minimum
+    if maximum is not None and minimum is None:
+        return f"bis {_betrag(maximum)} {waehrung}{zeitraum}"
+    betrag = minimum if minimum is not None else maximum
     return f"ab {_betrag(betrag)} {waehrung}{zeitraum}"
 
 
@@ -78,7 +80,7 @@ def parse_jobs(rows: list[dict]) -> list[JobItem]:
                 title=_clean(row.get("title")) or "(ohne Titel)",
                 company=_clean(row.get("company")) or "(unbekannt)",
                 location=_clean(row.get("location")) or "",
-                url=direkt or url,
+                url=url,
                 source="indeed",
                 source_ref=_clean(row.get("id")),
                 company_website=_clean(row.get("company_url")),

@@ -3,7 +3,7 @@ import sys
 
 from . import db
 from .config import load_config
-from .sources import arbeitsagentur, indeed
+from .sources import arbeitsagentur
 
 
 def _cmd_fetch(args: argparse.Namespace) -> int:
@@ -24,13 +24,15 @@ def _cmd_fetch(args: argparse.Namespace) -> int:
 
 
 def _cmd_fetch_indeed(args: argparse.Namespace) -> int:
+    from .sources import indeed
+
     cfg = load_config()
     conn = db.connect(cfg.db_path)
     items = indeed.fetch_jobs(
         was=args.was,
         wo=args.wo,
         umkreis=args.umkreis,
-        seit_stunden=args.seit * 24 if args.seit else None,
+        seit_stunden=args.seit * 24 if args.seit is not None else None,
         ergebnisse=args.ergebnisse,
     )
     inserted = sum(1 for item in items if db.insert_job(conn, item))
