@@ -7,6 +7,16 @@ from .models import JobItem
 
 STATUSES = {"new", "selected", "rejected"}
 
+# Whitelist statt String-Interpolation: `sort` kommt aus der URL und darf
+# niemals direkt in die SQL-Anweisung wandern.
+_SORT_SPALTEN = {
+    "id": "id",
+    "frische": "COALESCE(changed_at, posted_at)",
+    "distance_km": "distance_km",
+    "company": "company",
+    "title": "title",
+}
+
 SCHEMA_VERSION = 2
 
 SCHEMA = """
@@ -199,20 +209,40 @@ def update_description(conn: sqlite3.Connection, job_id: int, text: str) -> None
     conn.commit()
 
 
+def set_status_bulk(conn: sqlite3.Connection, job_ids: list[int], status: str) -> int:
+    """Setzt den Status mehrerer Stellen in einer Transaktion."""
+    if status not in STATUSES:
+        raise ValueError(f"Unbekannter Status: {status}")
+    if not job_ids:
+        return 0
+    platzhalter = ",".join("?" * len(job_ids))
+    cur = conn.execute(
+        f"UPDATE jobs SET status = ? WHERE id IN ({platzhalter})",
+        (status, *job_ids),
+    )
+    conn.commit()
+    return cur.rowcount
+
+
 def suche_jobs(
     conn: sqlite3.Connection,
     status: str | None = None,
     q: str | None = None,
     ort: str | None = None,
     mit_verschwundenen: bool = False,
+    sort: str = "id",
+    order: str = "desc",
 ) -> list[sqlite3.Row]:
     """Stellenliste mit optionalen Filtern.
 
     `q` sucht in Titel und Firma, `ort` im Ort — beides ohne
     Beachtung der Groß-/Kleinschreibung. Stellen, deren Anzeige bei der
     Quelle verschwunden ist, bleiben aussen vor, solange
-    `mit_verschwundenen` nicht gesetzt ist.
+    `mit_verschwundenen` nicht gesetzt ist. `sort` läuft über eine feste
+    Spalten-Whitelist; unbekannte Werte fallen still auf `id` zurück.
     """
+    spalte = _SORT_SPALTEN.get(sort, "id")
+    richtung = "ASC" if order == "asc" else "DESC"
     sql = "SELECT * FROM jobs WHERE 1=1"
     werte: list[str] = []
     if not mit_verschwundenen:
@@ -226,7 +256,7 @@ def suche_jobs(
     if ort:
         sql += " AND LOWER(location) LIKE ?"
         werte.append(f"%{ort.lower()}%")
-    sql += " ORDER BY id DESC"
+    sql += f" ORDER BY {spalte} {richtung}"
     return conn.execute(sql, werte).fetchall()
 
 

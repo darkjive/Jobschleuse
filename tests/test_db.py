@@ -273,3 +273,51 @@ def test_suche_jobs_blendet_verschwundene_aus(conn):
 
     assert len(db.suche_jobs(conn)) == 1
     assert len(db.suche_jobs(conn, mit_verschwundenen=True)) == 2
+
+
+def test_suche_jobs_default_bleibt_id_absteigend(conn):
+    db.insert_job(conn, make_item(url="http://a"))
+    db.insert_job(conn, make_item(url="http://b", title="Zweite"))
+    rows = db.suche_jobs(conn)
+    assert [r["id"] for r in rows] == [2, 1]
+
+
+def test_suche_jobs_sortiert_nach_titel_aufsteigend(conn):
+    db.insert_job(conn, make_item(url="http://a", title="Zebra", company="Firma A"))
+    db.insert_job(conn, make_item(url="http://b", title="Anton", company="Firma B"))
+    rows = db.suche_jobs(conn, sort="title", order="asc")
+    assert [r["title"] for r in rows] == ["Anton", "Zebra"]
+
+
+def test_suche_jobs_sortiert_nach_entfernung(conn):
+    db.insert_job(conn, make_item(url="http://a", distance_km=50))
+    db.insert_job(conn, make_item(url="http://b", distance_km=10, title="Andere"))
+    rows = db.suche_jobs(conn, sort="distance_km", order="asc")
+    assert [r["distance_km"] for r in rows] == [10, 50]
+
+
+def test_suche_jobs_unbekannte_sortierung_faellt_auf_id_zurueck(conn):
+    db.insert_job(conn, make_item(url="http://a"))
+    db.insert_job(conn, make_item(url="http://b", title="Zweite"))
+    rows = db.suche_jobs(conn, sort="does-not-exist; DROP TABLE jobs")
+    assert [r["id"] for r in rows] == [2, 1]
+
+
+def test_set_status_bulk_aktualisiert_mehrere(conn):
+    db.insert_job(conn, make_item(url="http://a"))
+    db.insert_job(conn, make_item(url="http://b", title="Zweite"))
+    ids = [r["id"] for r in db.list_jobs(conn)]
+    geaendert = db.set_status_bulk(conn, ids, "selected")
+    assert geaendert == 2
+    assert all(r["status"] == "selected" for r in db.list_jobs(conn))
+
+
+def test_set_status_bulk_leere_liste(conn):
+    assert db.set_status_bulk(conn, [], "selected") == 0
+
+
+def test_set_status_bulk_lehnt_unbekannten_status_ab(conn):
+    db.insert_job(conn, make_item(url="http://a"))
+    job_id = db.list_jobs(conn)[0]["id"]
+    with pytest.raises(ValueError):
+        db.set_status_bulk(conn, [job_id], "geloescht")
