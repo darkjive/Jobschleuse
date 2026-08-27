@@ -67,7 +67,7 @@ Keine neuen Abhängigkeiten.
 **Interfaces:**
 - Produces: `suche_jobs(conn, status=None, q=None, ort=None, mit_verschwundenen=False, sort="id", order="desc") -> list[sqlite3.Row]` (bisherige Signatur + zwei neue optionale Parameter, Default-Verhalten unverändert). `set_status_bulk(conn, job_ids: list[int], status: str) -> int` — liefert Anzahl geänderter Zeilen, wirft `ValueError` bei unbekanntem Status.
 
-- [ ] **Step 1: Fehlschlagende Tests schreiben**
+- [x] **Step 1: Fehlschlagende Tests schreiben**
 
 An `tests/test_db.py` anhängen (Datei importiert bereits `pytest`, `db`, `JobItem`, hat bereits `make_item()` und die `conn`-Fixture — nichts davon neu schreiben):
 
@@ -120,13 +120,13 @@ def test_set_status_bulk_lehnt_unbekannten_status_ab(conn):
         db.set_status_bulk(conn, [job_id], "geloescht")
 ```
 
-- [ ] **Step 2: Tests laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Tests laufen lassen, Fehlschlag bestätigen**
 
 Run: `uv run pytest tests/test_db.py -v -k "sortier or bulk or default_bleibt"`
 Expected: FAIL — `suche_jobs() got an unexpected keyword argument 'sort'` bzw.
 `AttributeError: module 'bewerbungs_pipeline.db' has no attribute 'set_status_bulk'`
 
-- [ ] **Step 3: Implementieren**
+- [x] **Step 3: Implementieren**
 
 In `src/bewerbungs_pipeline/db.py` nach der Konstante `STATUSES` einfügen:
 
@@ -199,12 +199,12 @@ def set_status_bulk(conn: sqlite3.Connection, job_ids: list[int], status: str) -
     return cur.rowcount
 ```
 
-- [ ] **Step 4: Tests laufen lassen, Erfolg bestätigen**
+- [x] **Step 4: Tests laufen lassen, Erfolg bestätigen**
 
 Run: `uv run pytest tests/test_db.py -v`
 Expected: PASS (alle Tests der Datei, auch die vorher schon bestehenden)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/bewerbungs_pipeline/db.py tests/test_db.py
@@ -223,7 +223,7 @@ git commit -m "feat(db): Sortierung in suche_jobs, set_status_bulk für Bulk-Akt
 - Consumes: `db.connect`, `db.insert_job`, `db.list_jobs` (Task 1/bestehend); `tasks.start`, `tasks.get` (bestehend, `tasks.Task`-Dataclass mit Feldern `id, beschreibung, status, meldung, ergebnis`).
 - Produces: `JobOut`, `SlotOut`, `ApplicationOut`, `ApplicationDetail`, `TaskOut`, `TaskRef` (Pydantic-Modelle); `job_out(row, application_id=None) -> JobOut`; Request-Modelle `StatusUpdate`, `BulkStatusUpdate`, `SlotValue`, `ApplicationCreate`, `FetchRequest`. Diese Namen werden von Task 3–6 importiert.
 
-- [ ] **Step 1: Fehlschlagenden Test schreiben**
+- [x] **Step 1: Fehlschlagenden Test schreiben**
 
 `tests/test_web_schemas.py`:
 
@@ -314,12 +314,12 @@ def test_application_out_verschachtelt_slots():
     assert out.slots["motivation"].value == "x"
 ```
 
-- [ ] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `uv run pytest tests/test_web_schemas.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'bewerbungs_pipeline.web.schemas'`
 
-- [ ] **Step 3: Implementieren**
+- [x] **Step 3: Implementieren**
 
 `src/bewerbungs_pipeline/web/schemas.py`:
 
@@ -434,12 +434,12 @@ class FetchRequest(BaseModel):
     quelle: Literal["arbeitsagentur", "indeed"] = "arbeitsagentur"
 ```
 
-- [ ] **Step 4: Test laufen lassen, Erfolg bestätigen**
+- [x] **Step 4: Test laufen lassen, Erfolg bestätigen**
 
 Run: `uv run pytest tests/test_web_schemas.py -v`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/bewerbungs_pipeline/web/schemas.py tests/test_web_schemas.py
@@ -459,7 +459,7 @@ git commit -m "feat(web): Pydantic-Antwortmodelle für die künftige JSON-API"
 - Consumes: `db.suche_jobs`, `db.get_job`, `db.set_status`, `db.set_status_bulk` (Task 1); `applications.get_by_job` (bestehend); `job_out`, `JobOut`, `StatusUpdate`, `BulkStatusUpdate` (Task 2); `get_conn` aus `web/app.py` (bestehend).
 - Produces: `router` (FastAPI `APIRouter`, Modulattribut `api_jobs.router`) — wird von Task 4 (im selben Modul erweitert) und von `web/app.py` konsumiert.
 
-- [ ] **Step 1: Fehlschlagende Tests schreiben**
+- [x] **Step 1: Fehlschlagende Tests schreiben**
 
 `tests/test_api_jobs.py`:
 
@@ -635,14 +635,14 @@ def test_status_bulk_aktualisiert_mehrere(tmp_path):
     assert all(r["status"] == "rejected" for r in db.list_jobs(conn))
 ```
 
-- [ ] **Step 2: Tests laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Tests laufen lassen, Fehlschlag bestätigen**
 
 Run: `uv run pytest tests/test_api_jobs.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'bewerbungs_pipeline.web.routes.api_jobs'`
 (nach Erstellen der leeren Datei stattdessen: 404 auf alle `/api/jobs*`-Pfade,
 da der Router noch nicht in `web/app.py` registriert ist)
 
-- [ ] **Step 3: Implementieren**
+- [x] **Step 3: Implementieren**
 
 `src/bewerbungs_pipeline/web/routes/api_jobs.py`:
 
@@ -725,12 +725,12 @@ ist dort bereits dokumentiert: zirkulärer Import über `get_conn`/`templates`):
     app.include_router(api_jobs_routen.router)
 ```
 
-- [ ] **Step 4: Tests laufen lassen, Erfolg bestätigen**
+- [x] **Step 4: Tests laufen lassen, Erfolg bestätigen**
 
 Run: `uv run pytest tests/test_api_jobs.py -v`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/bewerbungs_pipeline/web/routes/api_jobs.py \
@@ -752,7 +752,7 @@ git commit -m "feat(web): JSON-API für Stellenliste, Detail und Statuswechsel"
   `FetchRequest`, `TaskRef` (Task 2).
 - Produces: `POST /api/jobs/fetch` → `{"task_id": str}`.
 
-- [ ] **Step 1: Fehlschlagende Tests schreiben**
+- [x] **Step 1: Fehlschlagende Tests schreiben**
 
 An den Kopf von `tests/test_api_jobs.py` ergänzen (zu den bestehenden
 Imports hinzufügen):
@@ -803,12 +803,12 @@ def test_fetch_verzweigt_auf_indeed(tmp_path, monkeypatch):
     assert _warte_auf_task(task_id).status == "fertig"
 ```
 
-- [ ] **Step 2: Tests laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Tests laufen lassen, Fehlschlag bestätigen**
 
 Run: `uv run pytest tests/test_api_jobs.py -k fetch -v`
 Expected: FAIL mit 404 (Route existiert noch nicht)
 
-- [ ] **Step 3: Implementieren**
+- [x] **Step 3: Implementieren**
 
 In `src/bewerbungs_pipeline/web/routes/api_jobs.py` die Imports am Kopf
 ersetzen durch:
@@ -862,12 +862,12 @@ def fetch(body: FetchRequest, request: Request) -> TaskRef:
     return TaskRef(task_id=task_id)
 ```
 
-- [ ] **Step 4: Tests laufen lassen, Erfolg bestätigen**
+- [x] **Step 4: Tests laufen lassen, Erfolg bestätigen**
 
 Run: `uv run pytest tests/test_api_jobs.py -v`
 Expected: PASS (komplette Datei, auch die Tests aus Task 3)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/bewerbungs_pipeline/web/routes/api_jobs.py tests/test_api_jobs.py
@@ -890,7 +890,7 @@ git commit -m "feat(web): JSON-Endpunkt für Stellensuche (Arbeitsagentur + Inde
   pollt selbst und reagiert im eigenen State, ein serverseitiges
   Nachlade-Ziel entfällt ersatzlos (siehe Spec, Abschnitt „API-Schnitt").
 
-- [ ] **Step 1: Fehlschlagende Tests schreiben**
+- [x] **Step 1: Fehlschlagende Tests schreiben**
 
 `tests/test_api_tasks.py`:
 
@@ -963,12 +963,12 @@ def test_status_unbekannter_task_gibt_404(tmp_path):
     assert antwort.status_code == 404
 ```
 
-- [ ] **Step 2: Tests laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Tests laufen lassen, Fehlschlag bestätigen**
 
 Run: `uv run pytest tests/test_api_tasks.py -v`
 Expected: FAIL — 404 auf `/api/tasks/*`, da weder Modul noch Router existieren
 
-- [ ] **Step 3: Implementieren**
+- [x] **Step 3: Implementieren**
 
 `src/bewerbungs_pipeline/web/routes/api_tasks.py`:
 
@@ -1005,12 +1005,12 @@ In `src/bewerbungs_pipeline/web/app.py` den lokalen Import-Block erweitern:
     app.include_router(api_tasks_routen.router)
 ```
 
-- [ ] **Step 4: Tests laufen lassen, Erfolg bestätigen**
+- [x] **Step 4: Tests laufen lassen, Erfolg bestätigen**
 
 Run: `uv run pytest tests/test_api_tasks.py -v`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/bewerbungs_pipeline/web/routes/api_tasks.py \
@@ -1038,7 +1038,7 @@ git commit -m "feat(web): JSON-Endpunkt für Task-Status"
   `web/app.py` konsumiert. `/applications/{id}/preview` bleibt unverändert
   in `web/routes/applications.py` — kein API-Äquivalent nötig (siehe Spec).
 
-- [ ] **Step 1: Fehlschlagende Tests schreiben**
+- [x] **Step 1: Fehlschlagende Tests schreiben**
 
 `tests/test_api_applications.py`:
 
@@ -1234,12 +1234,12 @@ def test_export_liefert_task_id(tmp_path):
     assert (cfg.out_dir / "beispiel-ag" / "index.html").exists()
 ```
 
-- [ ] **Step 2: Tests laufen lassen, Fehlschlag bestätigen**
+- [x] **Step 2: Tests laufen lassen, Fehlschlag bestätigen**
 
 Run: `uv run pytest tests/test_api_applications.py -v`
 Expected: FAIL — `ModuleNotFoundError` bzw. 404 auf alle `/api/applications*`-Pfade
 
-- [ ] **Step 3: Implementieren**
+- [x] **Step 3: Implementieren**
 
 `src/bewerbungs_pipeline/web/routes/api_applications.py`:
 
@@ -1350,19 +1350,19 @@ letztes Mal erweitern:
     app.include_router(api_applications_routen.router)
 ```
 
-- [ ] **Step 4: Tests laufen lassen, Erfolg bestätigen**
+- [x] **Step 4: Tests laufen lassen, Erfolg bestätigen**
 
 Run: `uv run pytest tests/test_api_applications.py -v`
 Expected: PASS
 
-- [ ] **Step 5: Gesamte Suite laufen lassen**
+- [x] **Step 5: Gesamte Suite laufen lassen**
 
 Run: `uv run pytest`
 Expected: PASS — alle bestehenden Tests (inkl. `test_web_*.py`, die die
 unveränderte HTML-Oberfläche prüfen) und alle neuen `test_api_*.py`/
 `test_web_schemas.py`/erweiterten `test_db.py`-Tests sind grün.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/bewerbungs_pipeline/web/routes/api_applications.py \
