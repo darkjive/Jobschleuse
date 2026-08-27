@@ -9,6 +9,10 @@ templates/bewerbung.html
 templates/assets/portrait.jpg
 templates/assets/signature.png
 
+# Frontend: node_modules nicht committed, das Build-Ergebnis (frontend/dist)
+# schon — siehe docs/specs/2026-08-27-shadcn-umbau-design.md.
+frontend/node_modules/
+
 # Lokale Agent-/Tool-Artefakte
 .playwright-mcp/
 .agents/

@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -11,6 +12,10 @@ from ..config import Config
 
 HIER = Path(__file__).parent
 templates = Jinja2Templates(directory=str(HIER / "templates"))
+
+# Vite baut hierher (siehe frontend/vite.config.ts, base: '/app/'). Das
+# Verzeichnis wird committed — kein Node zur Laufzeit nötig (siehe Spec).
+FRONTEND_DIST = HIER.parent.parent.parent / "frontend" / "dist"
 
 
 def _alter(wert: str | None) -> str | None:
@@ -80,5 +85,22 @@ def create_app(cfg: Config) -> FastAPI:
     @app.get("/")
     def index(request: Request):
         return templates.TemplateResponse(request, "stellen.html", {})
+
+    if FRONTEND_DIST.is_dir():
+        dist_resolved = FRONTEND_DIST.resolve()
+
+        @app.get("/app", include_in_schema=False)
+        @app.get("/app/{pfad:path}", include_in_schema=False)
+        def spa(pfad: str = "") -> FileResponse:
+            """Liefert das React-Frontend; unbekannte Pfade gehen an React Router.
+
+            `pfad` kommt aus der URL und könnte `../`-Sequenzen enthalten —
+            `is_relative_to` verhindert, dass damit Dateien außerhalb von
+            FRONTEND_DIST ausgelesen werden.
+            """
+            datei = (FRONTEND_DIST / pfad).resolve()
+            if pfad and datei.is_relative_to(dist_resolved) and datei.is_file():
+                return FileResponse(datei)
+            return FileResponse(FRONTEND_DIST / "index.html")
 
     return app
