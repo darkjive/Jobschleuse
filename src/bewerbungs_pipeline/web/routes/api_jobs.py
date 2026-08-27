@@ -1,10 +1,18 @@
 import sqlite3
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-from ... import applications, db
+from ... import applications, db, tasks
 from ..app import get_conn
-from ..schemas import BulkStatusUpdate, JobOut, StatusUpdate, job_out
+from ..schemas import (
+    BulkStatusUpdate,
+    FetchRequest,
+    JobOut,
+    StatusUpdate,
+    TaskRef,
+    job_out,
+)
+from .jobs import suche_ausfuehren, suche_indeed_ausfuehren
 
 router = APIRouter(prefix="/api")
 
@@ -58,3 +66,31 @@ def status_bulk(
     body: BulkStatusUpdate, conn: sqlite3.Connection = Depends(get_conn)
 ) -> dict[str, int]:
     return {"aktualisiert": db.set_status_bulk(conn, body.ids, body.status)}
+
+
+@router.post("/jobs/fetch")
+def fetch(body: FetchRequest, request: Request) -> TaskRef:
+    cfg = request.app.state.cfg
+    if body.quelle == "indeed":
+        task_id = tasks.start(
+            f"Indeed-Suche „{body.was}“ in {body.wo}",
+            suche_indeed_ausfuehren,
+            cfg,
+            body.was,
+            body.wo,
+            body.umkreis,
+            body.seit,
+        )
+    else:
+        task_id = tasks.start(
+            f"Suche „{body.was}“ in {body.wo}",
+            suche_ausfuehren,
+            cfg,
+            body.was,
+            body.wo,
+            body.umkreis,
+            body.seit,
+            body.ohne_zeitarbeit,
+            body.nur_arbeit,
+        )
+    return TaskRef(task_id=task_id)

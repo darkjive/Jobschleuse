@@ -1,12 +1,15 @@
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from bewerbungs_pipeline import db
+from bewerbungs_pipeline import tasks as tasks_modul
 from bewerbungs_pipeline.config import Config
 from bewerbungs_pipeline.models import JobItem
 from bewerbungs_pipeline.web.app import create_app
+from bewerbungs_pipeline.web.routes import jobs as jobs_routen
 
 TEMPLATE = Path(__file__).parent / "fixtures" / "template_mini.html"
 
@@ -167,3 +170,39 @@ def test_status_bulk_aktualisiert_mehrere(tmp_path):
     assert antwort.json() == {"aktualisiert": 2}
     conn = db.connect(cfg.db_path)
     assert all(r["status"] == "rejected" for r in db.list_jobs(conn))
+
+
+def _warte_auf_task(task_id: str, timeout: float = 5.0):
+    frist = time.monotonic() + timeout
+    while time.monotonic() < frist:
+        task = tasks_modul.get(task_id)
+        if task is not None and task.status != "läuft":
+            return task
+        time.sleep(0.01)
+    raise AssertionError(f"Vorgang {task_id} wurde nicht fertig")
+
+
+def test_fetch_liefert_task_id(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    monkeypatch.setattr(jobs_routen.arbeitsagentur, "fetch_jobs", lambda **kw: [])
+    monkeypatch.setattr(jobs_routen.arbeitsagentur, "check_alive", lambda refnrs: set())
+    client = TestClient(create_app(cfg))
+    antwort = client.post(
+        "/api/jobs/fetch", json={"was": "Entwickler", "wo": "Mainz", "umkreis": 25}
+    )
+    assert antwort.status_code == 200
+    task_id = antwort.json()["task_id"]
+    assert _warte_auf_task(task_id).status == "fertig"
+
+
+def test_fetch_verzweigt_auf_indeed(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    monkeypatch.setattr(jobs_routen.indeed, "fetch_jobs", lambda **kw: [])
+    client = TestClient(create_app(cfg))
+    antwort = client.post(
+        "/api/jobs/fetch",
+        json={"was": "Entwickler", "wo": "Mainz", "umkreis": 25, "quelle": "indeed"},
+    )
+    assert antwort.status_code == 200
+    task_id = antwort.json()["task_id"]
+    assert _warte_auf_task(task_id).status == "fertig"
