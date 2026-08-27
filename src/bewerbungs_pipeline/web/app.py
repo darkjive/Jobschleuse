@@ -63,6 +63,7 @@ def create_app(cfg: Config) -> FastAPI:
 
     # Erst hier importieren: routes/jobs.py greift auf get_conn und templates
     # aus diesem Modul zu — ein Import auf Modulebene wäre zirkulär.
+    from .routes import api_applications as api_applications_routen
     from .routes import api_jobs as api_jobs_routen
     from .routes import api_tasks as api_tasks_routen
     from .routes import applications as bewerbungs_routen
@@ -74,6 +75,7 @@ def create_app(cfg: Config) -> FastAPI:
     app.include_router(bewerbungs_routen.router)
     app.include_router(api_jobs_routen.router)
     app.include_router(api_tasks_routen.router)
+    app.include_router(api_applications_routen.router)
 
     @app.get("/")
     def index(request: Request):
