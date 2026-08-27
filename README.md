@@ -1,19 +1,22 @@
-# Bewerbungs-Pipeline
+<div align="center">
+
+# Jobschleuse
 
 **Stellen finden, anreichern und zur fertigen Bewerbung machen — lokal, ohne SaaS.**
 
-_Kommandozeilen-Tool mit optionaler Weboberfläche._
+_Stellen rein, Bewerbungen raus._
 
 Python · FastAPI + HTMX · SQLite · uv
 
+</div>
+
 ---
 
-Sucht Stellenangebote bei der Bundesagentur für Arbeit, reichert sie um
-Fakten an, die die Trefferliste allein nicht hergibt (Herkunft, Vermittlerart,
-Gehalt, Homeoffice, Entfernung, Frische), erkennt verschwundene Anzeigen von
-selbst und füllt für die ausgewählten eine Bewerbungsvorlage per LLM. Alle
-Daten bleiben lokal in SQLite; einzig der LLM-Aufruf zum Textfüllen verlässt
-den Rechner, mit frei wählbarem Endpunkt (`LLM_BASE_URL`).
+Sucht Stellenangebote bei der Bundesagentur für Arbeit und optional bei
+Indeed, reichert sie um Fakten an, die die Trefferliste allein nicht hergibt
+(Herkunft, Vermittlerart, Gehalt, Homeoffice, Entfernung, Frische), erkennt
+verschwundene Anzeigen von selbst und füllt für die ausgewählten eine
+Bewerbungsvorlage per LLM.
 
 Specs: [`docs/specs/`](./docs/specs/) · Pläne: [`docs/plans/`](./docs/plans/).
 
@@ -21,23 +24,50 @@ Specs: [`docs/specs/`](./docs/specs/) · Pläne: [`docs/plans/`](./docs/plans/).
 
 | Bereich | Beschreibung |
 |---|---|
-| Suche | Bundesagentur-Schnittstelle, Filter nach Umkreis, Alter (`--seit`), ohne Zeitarbeit, nur Arbeitsstellen (keine Ausbildung) |
+| Suche | Bundesagentur-Schnittstelle (`fetch`) und Indeed via jobspy (`fetch-indeed`); Filter nach Umkreis, Alter (`--seit`), ohne Zeitarbeit, nur Arbeitsstellen (keine Ausbildung) |
 | Anreicherung | Herkunft (Direktarbeitgeber/Vermittler/Zeitarbeit), Gehalt, Homeoffice, Vertrag, Arbeitszeit, Adresse, Entfernung — parallel nachgeladen, ohne die Suche zu verlangsamen |
 | Bestandspflege | erkennt bei jeder Suche und per `jobs check`, welche gespeicherten Anzeigen bei der Quelle verschwunden sind; markiert statt zu löschen |
 | Verwaltung | Status je Stelle (`new` / `selected` / `rejected`) über CLI oder Weboberfläche |
 | Vorlage & Slots | eigene HTML-Vorlage mit `data-slot`-Markierungen, Textblöcke werden per LLM aus Profil + Stellenanzeige gefüllt, einzeln nachbearbeitbar |
 | Export | fertiges PDF (via lokalem Chromium) plus HTML/CSS/Assets für Nachkorrekturen von Hand |
 
-## Setup
+## Schnellstart
 
     uv sync
-    cp .env.example .env        # LLM_BASE_URL, LLM_API_KEY, LLM_MODEL eintragen
+    cp .env.example .env                   # LLM_BASE_URL, LLM_API_KEY, LLM_MODEL eintragen
     cp profile.yaml.example profile.yaml   # persönliche Daten eintragen
+
+    uv run jobs fetch --was "Mechatroniker" --wo "Frankfurt" --umkreis 50 \
+        --seit 14 --ohne-zeitarbeit --nur-arbeit
+    uv run jobs check             # Bestand auf verschwundene Anzeigen prüfen
+    uv run jobs list --status new
+    uv run jobs pick 3
+    uv run jobs generate 3        # → out/<firma>/index.html
+
+Für den PDF-Export muss zusätzlich ein Chromium-Browser installiert sein
+(`chromium`, `google-chrome` oder `brave` — Playwright steuert ihn nur,
+lädt aber selbst keinen nach). Ohne das läuft alles außer `jobs generate`
+normal, der Export bricht mit einer entsprechenden Meldung ab.
+
+## Weboberfläche
+
+    uv run jobs serve            # → http://127.0.0.1:8765
+
+Stellen sichten und auswählen, Bewerbung erzeugen, einzelne Textblöcke
+nachbearbeiten oder neu erzeugen lassen, Vorschau ansehen, exportieren.
+Läuft ausschließlich lokal, ohne Login. Das CLI bleibt unverändert nutzbar,
+beide teilen sich dieselbe Business-Logik.
+
+Jede Suche prüft nebenbei, ob die bereits gespeicherten Anzeigen bei der
+Quelle noch vorhanden sind. Verschwundene werden markiert und ausgeblendet,
+bleiben aber über „auch verschwundene zeigen" erreichbar — samt einer
+eventuell schon erzeugten Bewerbung.
 
 ## Architektur
 
     src/bewerbungs_pipeline/
       sources/arbeitsagentur.py   Suche, Anreicherung, Verfügbarkeitsprüfung
+      sources/indeed.py           Suche über python-jobspy
       sources/normalisierung.py   Rohwerte der Quelle → Anzeigewerte (rein, ohne Seiteneffekt)
       db.py                       SQLite-Schema, Migration, Zugriff
       models.py                   JobItem — Datenmodell für Stellen
@@ -46,10 +76,7 @@ Specs: [`docs/specs/`](./docs/specs/) · Pläne: [`docs/plans/`](./docs/plans/).
       slots.py                    data-slot-Erkennung in HTML-Vorlagen
       pdf.py                      Export über lokales Chromium (Playwright)
       cli.py                      Kommandozeile
-      web/                        FastAPI + HTMX-Oberfläche (optional, lokal)
-
-Das CLI ist der primäre Weg; die Weboberfläche baut auf denselben
-Funktionen auf, ersetzt sie nicht.
+      web/                        FastAPI + HTMX-Oberfläche
 
 ## Vorlagen
 
@@ -57,9 +84,9 @@ Funktionen auf, ersetzt sie nicht.
 
 - `beispiel.html` – Demo-Vorlage (Minimal-Beispiel, Default).
 - `beispiel-org.html` – Demo-Vorlage mit organisationsspezifischen Slots.
-- `bewerbung.html` – Eigene Bewerbungsvorlage (mit `assets/` und `styles.css`).
-- `styles.css` – Geteilte Styles für `bewerbung.html`.
-- `assets/` – Bilder, Fonts etc. für `bewerbung.html`.
+- `styles.css` – Geteilte Styles für eigene Vorlagen.
+- eigene Vorlagen (z. B. `bewerbung.html` + `assets/`) sind bewusst nicht Teil
+  des Repos — persönliche Daten wie Foto oder Unterschrift bleiben lokal.
 
 ### Eigene Vorlage anschließen
 
@@ -71,30 +98,6 @@ Funktionen auf, ersetzt sie nicht.
    Ohne eigenen Schritt läuft alles mit der Demo-Vorlage
    (`TEMPLATE_PATH=templates/beispiel.html`).
 
-## Benutzung
-
-    uv run jobs fetch --was "Mechatroniker" --wo "Frankfurt" --umkreis 50 \
-        --seit 14 --ohne-zeitarbeit --nur-arbeit
-    uv run jobs check             # Bestand auf verschwundene Anzeigen prüfen
-    uv run jobs list --status new
-    uv run jobs pick 3
-    uv run jobs generate 3      # → out/<firma>/index.html
-
-## Weboberfläche
-
-    uv run jobs serve            # → http://127.0.0.1:8765
-
-Stellen sichten und auswählen, Bewerbung erzeugen, einzelne Textblöcke
-nachbearbeiten oder neu erzeugen lassen, Vorschau ansehen, exportieren.
-Läuft ausschließlich lokal, ohne Login.
-
-Das CLI bleibt unverändert nutzbar.
-
-Jede Suche prüft nebenbei, ob die bereits gespeicherten Anzeigen bei der
-Quelle noch vorhanden sind. Verschwundene werden markiert und ausgeblendet,
-bleiben aber über „auch verschwundene zeigen" erreichbar — samt einer
-eventuell schon erzeugten Bewerbung.
-
 ## Ergebnis des Exports
 
 Je Bewerbung entsteht `out/<firma>/`:
@@ -104,9 +107,17 @@ Je Bewerbung entsteht `out/<firma>/`:
   Nachkorrekturen von Hand
 - `stelle.md` – die Stellenanzeige zum Nachlesen
 
-Das PDF wird über einen im System vorhandenen Chromium gedruckt (`chromium`,
-`google-chrome` oder `brave`; Playwright steuert ihn nur). Ohne Browser
-bricht der Export mit einer entsprechenden Meldung ab.
-
 Die Vorlage bringt Schriften, Icons und Bilder lokal mit — Vorschau und PDF
 sehen deshalb offline genauso aus wie online.
+
+## Datenschutz
+
+Alle Daten (Stellen, Profil, Status, exportierte Bewerbungen) bleiben lokal
+in SQLite bzw. auf der Platte. Einzig der LLM-Aufruf zum Textfüllen verlässt
+den Rechner, mit frei wählbarem Endpunkt (`LLM_BASE_URL`).
+
+## Unterstützen
+
+Jobschleuse ist Open Source und kostet nichts. Wer's nützlich findet:
+
+- **PayPal** — https://paypal.me/AlainRitter

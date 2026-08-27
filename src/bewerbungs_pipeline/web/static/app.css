@@ -21,7 +21,16 @@ a { color: var(--accent); }
   border-bottom: 1px solid var(--border);
 }
 
+.kopf-marke { display: flex; align-items: center; gap: 0.6rem; }
+.marke-logo { flex-shrink: 0; }
+.marke-text { display: flex; flex-direction: column; }
+
 .kopf h1 { font-size: 1rem; font-weight: 700; margin: 0; letter-spacing: 0.01em; }
+.marke-claim { font-size: 0.7rem; color: var(--text-dim); margin: 0; line-height: 1.2; }
+
+.fuss { padding: 1rem 1.25rem; text-align: center; }
+.fuss a { font-size: 0.75rem; color: var(--text-muted); text-decoration: none; }
+.fuss a:hover { color: var(--text-dim); }
 
 .knopf {
   font: inherit;
@@ -42,6 +51,8 @@ a { color: var(--accent); }
   border-color: var(--accent-bright);
   font-weight: 600;
 }
+
+.knopf--haupt:hover { background: var(--accent-bright); }
 
 .meldung {
   padding: 0.6rem 0.9rem;

@@ -1,4 +1,50 @@
-name: Alain Ritter
-adresse: "Straße Hausnr, PLZ Ort"
-email: cosmwave@gmail.com
-telefon: "+49 ..."
+name: Max Mustermann
+adresse: "Musterstraße 1, 12345 Musterstadt"
+email: max.mustermann@example.com
+telefon: "+49 151 12345678"
+website: "https://example.com"
+
+kurzprofil: >
+  Kurzer Absatz zur eigenen Person: Beruf, Schwerpunkte, was man mitbringt.
+  Wird der LLM als Grundlage für Anschreiben-Formulierungen gegeben.
+
+werdegang:
+  - zeitraum: "2020–heute"
+    firma: "Musterfirma GmbH"
+    rolle: "Beispiel-Rolle"
+    aufgaben:
+      - "Erste Kernaufgabe in dieser Rolle"
+      - "Zweite Kernaufgabe in dieser Rolle"
+  - zeitraum: "2017–2020"
+    firma: "Vorherige Firma AG"
+    rolle: "Frühere Rolle"
+    aufgaben:
+      - "Kernaufgabe der früheren Rolle"
+
+ausbildung:
+  - einrichtung: "Beispiel-Hochschule"
+    abschluss: "Beispiel-Abschluss"
+    zeitraum: "2013–2017"
+
+zertifikate:
+  - titel: "Beispiel-Zertifikat"
+    aussteller: "Ausstellende Stelle"
+    gueltig: "2025"
+    id: "ABC-123"
+
+sprachen:
+  - "Deutsch (Muttersprache)"
+  - "Englisch (verhandlungssicher)"
+
+faehigkeiten:
+  ki: "z. B. Umgang mit LLM-Tools, Prompting"
+  marketing: "z. B. Content, SEO"
+  gestaltung: "z. B. Grafik, UI/UX"
+  web_cms: "z. B. WordPress, HTML/CSS"
+  office_erp: "z. B. Excel, SAP"
+  analytics: "z. B. Google Analytics"
+  staerken: "z. B. strukturiertes Arbeiten, Kommunikation"
+
+haltung: >
+  Kurzer Absatz zur eigenen Arbeitshaltung/Motivation, den die LLM-Generierung
+  für den Ton des Anschreibens nutzen kann.

@@ -5,6 +5,9 @@ __pycache__/
 data/
 out/
 profile.yaml
+templates/bewerbung.html
+templates/assets/portrait.jpg
+templates/assets/signature.png
 
 # Lokale Agent-/Tool-Artefakte
 .playwright-mcp/
