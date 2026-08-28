@@ -1,5 +1,5 @@
 [project]
-name = "bewerbungs-pipeline"
+name = "jobschleuse"
 version = "0.1.0"
 description = "Stellen finden und Bewerbungsvorlage per LLM füllen"
 requires-python = ">=3.13"
