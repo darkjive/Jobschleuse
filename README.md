@@ -6,7 +6,7 @@
 
 _Stellen rein, Bewerbungen raus._
 
-Python · FastAPI + HTMX · SQLite · uv
+Python · FastAPI + React/shadcn · SQLite · uv
 
 </div>
 
@@ -53,10 +53,21 @@ normal, der Export bricht mit einer entsprechenden Meldung ab.
 
     uv run jobs serve            # → http://127.0.0.1:8765
 
-Stellen sichten und auswählen, Bewerbung erzeugen, einzelne Textblöcke
-nachbearbeiten oder neu erzeugen lassen, Vorschau ansehen, exportieren.
-Läuft ausschließlich lokal, ohne Login. Das CLI bleibt unverändert nutzbar,
-beide teilen sich dieselbe Business-Logik.
+React + shadcn/ui, gegen eine JSON-API unter `/api/*`. Stellenliste mit
+Filtern, Sortierung und Bulk-Aktionen (mehrere Stellen auf einmal
+auswählen/aussortieren), Command-Palette (Strg/Cmd+K) zum schnellen
+Springen zu einer Stelle, Bewerbung erzeugen, einzelne Textblöcke per
+Auto-Save nachbearbeiten oder neu erzeugen lassen, Live-Vorschau,
+exportieren. Hell/Dunkel umschaltbar. Läuft ausschließlich lokal, ohne
+Login. Das CLI bleibt unverändert nutzbar, beide teilen sich dieselbe
+Business-Logik.
+
+Das Frontend liegt in `frontend/` (Vite + React + TypeScript) und wird
+fertig gebaut committed (`frontend/dist/`) — `uv run jobs serve` bleibt der
+einzige nötige Startbefehl, kein Node zur Laufzeit. Wer am Frontend
+arbeitet: `cd frontend && npm install && npm run dev` für einen
+Dev-Server mit Hot-Reload (proxied auf die FastAPI-API), `npm run build`
+vor dem Commit, `npm test` für die Vitest-Suite.
 
 Jede Suche prüft nebenbei, ob die bereits gespeicherten Anzeigen bei der
 Quelle noch vorhanden sind. Verschwundene werden markiert und ausgeblendet,
@@ -76,7 +87,12 @@ eventuell schon erzeugten Bewerbung.
       slots.py                    data-slot-Erkennung in HTML-Vorlagen
       pdf.py                      Export über lokales Chromium (Playwright)
       cli.py                      Kommandozeile
-      web/                        FastAPI + HTMX-Oberfläche
+      web/                        FastAPI: JSON-API (/api/*), liefert das React-Frontend aus
+
+    frontend/                     Vite + React + TypeScript + shadcn/ui
+      src/features/stellen/       Liste, Filter, Detail, Command-Palette
+      src/features/bewerbung/     Slot-Editor, Vorschau
+      dist/                       Build-Ergebnis, committed
 
 ## Vorlagen
 

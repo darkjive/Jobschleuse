@@ -23,15 +23,24 @@ def make_cfg(tmp_path) -> Config:
     )
 
 
-def test_static_files_are_served(tmp_path):
-    client = TestClient(create_app(make_cfg(tmp_path)))
-    antwort = client.get("/static/tokens.css")
-    assert antwort.status_code == 200
-    assert "--accent" in antwort.text
-
-
-def test_index_renders(tmp_path):
+def test_wurzel_liefert_react_app(tmp_path):
     client = TestClient(create_app(make_cfg(tmp_path)))
     antwort = client.get("/")
     assert antwort.status_code == 200
-    assert "Bewerbungen" in antwort.text
+    assert '<div id="root">' in antwort.text
+
+
+def test_unbekannter_pfad_liefert_ebenfalls_die_react_app(tmp_path):
+    """React Router übernimmt clientseitig — der Server liefert für jeden
+    unbekannten Pfad dieselbe index.html aus."""
+    client = TestClient(create_app(make_cfg(tmp_path)))
+    antwort = client.get("/bewerbung/42")
+    assert antwort.status_code == 200
+    assert '<div id="root">' in antwort.text
+
+
+def test_api_pfade_gehen_nicht_an_die_spa(tmp_path):
+    client = TestClient(create_app(make_cfg(tmp_path)))
+    antwort = client.get("/api/jobs")
+    assert antwort.status_code == 200
+    assert antwort.headers["content-type"].startswith("application/json")

@@ -1,7 +1,8 @@
 import time
 from datetime import UTC, datetime
 
-from bewerbungs_pipeline import db, tasks as tasks_modul
+from bewerbungs_pipeline import db
+from bewerbungs_pipeline import tasks as tasks_modul
 from bewerbungs_pipeline.models import JobItem
 from bewerbungs_pipeline.web.schemas import ApplicationOut, TaskOut, job_out
 

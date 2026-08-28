@@ -18,7 +18,9 @@ Storage ist reines SQLite (`data/jobs.db`, gitignored), kein ORM — Schema dire
 
 ## Web
 
-Die Weboberfläche ist gleichwertiges Interface, nicht nur CLI-Beiwerk — genutzt auch vom Handy (`uv run jobs serve --host 0.0.0.0`). `uv run jobs serve` startet FastAPI + HTMX + Jinja2 (Default-Port 8765, `--port`, `--no-browser`, `--host`). Kein npm/Node, kein separates JS-Frontend. Web nutzt dieselbe Business-Logik wie die CLI (`applications.py`, `db.py`), keine Duplikation. Background-Tasks (`tasks.py`) halten Status bewusst nur im Speicher (ThreadPoolExecutor, max. 2 Worker) — überlebt keinen App-Neustart, ist Absicht (Einzelbetrieb). Neue Quellen (z. B. `fetch-indeed`) bekommen deshalb i. d. R. sowohl CLI-Befehl als auch Web-Anbindung.
+Die Weboberfläche ist gleichwertiges Interface, nicht nur CLI-Beiwerk — genutzt auch vom Handy (`uv run jobs serve --host 0.0.0.0`). `uv run jobs serve` startet FastAPI (Default-Port 8765, `--port`, `--no-browser`, `--host`) und liefert unter `/` das gebaute React-Frontend aus (`frontend/dist/`, committed) sowie unter `/api/*` die JSON-API, gegen die es arbeitet. Web nutzt dieselbe Business-Logik wie die CLI (`applications.py`, `db.py`), keine Duplikation. Background-Tasks (`tasks.py`) halten Status bewusst nur im Speicher (ThreadPoolExecutor, max. 2 Worker) — überlebt keinen App-Neustart, ist Absicht (Einzelbetrieb). Neue Quellen (z. B. `fetch-indeed`) bekommen deshalb i. d. R. sowohl CLI-Befehl als auch Web-Anbindung.
+
+Frontend-Arbeit passiert in `frontend/` (Vite + React + TypeScript + shadcn/ui) — eigenes `package.json`, unabhängig vom Python-Toolchain. `npm run dev` für Hot-Reload gegen die laufende FastAPI-API (Proxy in `vite.config.ts`), `npm run build` erzeugt `frontend/dist/` — **muss committed werden**, `uv run jobs serve` liest zur Laufzeit kein Node/npm. `npm test` (Vitest) deckt die Logik mit echtem Fehlerpotenzial ab (Debounce, Task-Polling), nicht jede Komponente. `/applications/{id}/preview` bleibt ein serverseitig gerenderter HTML-Endpunkt (iframe-Inhalt der Bewerbungsvorschau) — kein Teil der JSON-API.
 
 ## Gotchas
 

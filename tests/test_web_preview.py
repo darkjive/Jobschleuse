@@ -1,0 +1,112 @@
+import json
+from dataclasses import replace
+from datetime import UTC, datetime
+from pathlib import Path
+from types import SimpleNamespace
+
+from fastapi.testclient import TestClient
+
+from bewerbungs_pipeline import applications, db
+from bewerbungs_pipeline.config import Config
+from bewerbungs_pipeline.models import JobItem
+from bewerbungs_pipeline.web.app import create_app
+from bewerbungs_pipeline.web.routes import preview as preview_routen
+
+TEMPLATE = Path(__file__).parent / "fixtures" / "template_mini.html"
+TEMPLATE_MIT_ASSETS = Path(__file__).parent / "fixtures" / "template_assets.html"
+
+GOOD = {
+    "titel": "Bewerbung — Beispiel AG",
+    "firma": "Beispiel AG",
+    "einstieg": "Ihre Anzeige hat mich überzeugt.",
+    "motivation": "Wartung und Service sind mein Feld.",
+}
+
+
+class FakeClient:
+    def __init__(self, payload: dict):
+        message = SimpleNamespace(content=json.dumps(payload, ensure_ascii=False))
+        response = SimpleNamespace(choices=[SimpleNamespace(message=message)])
+        self.chat = SimpleNamespace(
+            completions=SimpleNamespace(create=lambda **kw: response)
+        )
+
+
+def make_cfg(tmp_path, template_path: Path = TEMPLATE) -> Config:
+    profile = tmp_path / "profile.yaml"
+    profile.write_text("name: Alain Ritter\n")
+    return Config(
+        db_path=tmp_path / "jobs.db",
+        out_dir=tmp_path / "out",
+        template_path=template_path,
+        profile_path=profile,
+        cbks_inbox=None,
+        llm_base_url="http://localhost",
+        llm_api_key="test",
+        llm_model="test-model",
+    )
+
+
+def seed(cfg) -> int:
+    conn = db.connect(cfg.db_path)
+    db.insert_job(
+        conn,
+        JobItem(
+            title="Servicetechniker (m/w/d)",
+            company="Beispiel AG",
+            location="Frankfurt am Main",
+            url="https://example.org/job/1",
+            source="arbeitsagentur",
+            description_md="Wir suchen Verstärkung im Service.",
+            scraped_at=datetime.now(UTC),
+        ),
+    )
+    job_id = db.list_jobs(conn)[0]["id"]
+    db.set_status(conn, job_id, "selected")
+    conn.close()
+    return job_id
+
+
+def bewerbung_anlegen(cfg, job_id) -> int:
+    conn = db.connect(cfg.db_path)
+    app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
+    conn.close()
+    return app_id
+
+
+def test_pfade_umschreiben_setzt_praefix():
+    html = '<link rel="stylesheet" href="styles.css"><img src="assets/foto.png">'
+    ergebnis = preview_routen.pfade_umschreiben(html)
+    assert 'href="/template-assets/styles.css"' in ergebnis
+    assert 'src="/template-assets/assets/foto.png"' in ergebnis
+
+
+def test_pfade_umschreiben_laesst_absolute_pfade_in_ruhe():
+    html = '<img src="https://example.org/x.png"><img src="/schon-absolut.png">'
+    assert preview_routen.pfade_umschreiben(html) == html
+
+
+def test_vorschau_liefert_gefuelltes_html(tmp_path):
+    cfg = make_cfg(tmp_path)
+    app_id = bewerbung_anlegen(cfg, seed(cfg))
+    client = TestClient(create_app(cfg))
+    antwort = client.get(f"/applications/{app_id}/preview")
+    assert antwort.status_code == 200
+    assert "Beispiel AG" in antwort.text
+    assert "Dieser Text ist statisch und bleibt unverändert." in antwort.text
+
+
+def test_vorschau_schreibt_assetpfade_um(tmp_path):
+    cfg = replace(make_cfg(tmp_path), template_path=TEMPLATE_MIT_ASSETS)
+    app_id = bewerbung_anlegen(cfg, seed(cfg))
+    client = TestClient(create_app(cfg))
+    antwort = client.get(f"/applications/{app_id}/preview")
+    assert "/template-assets/styles.css" in antwort.text
+
+
+def test_vorschau_unbekannte_bewerbung_meldet_deutsch(tmp_path):
+    cfg = make_cfg(tmp_path)
+    client = TestClient(create_app(cfg))
+    antwort = client.get("/applications/999/preview")
+    assert antwort.status_code == 400
+    assert "nicht gefunden" in antwort.text

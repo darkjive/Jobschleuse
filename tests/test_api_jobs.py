@@ -9,7 +9,7 @@ from bewerbungs_pipeline import tasks as tasks_modul
 from bewerbungs_pipeline.config import Config
 from bewerbungs_pipeline.models import JobItem
 from bewerbungs_pipeline.web.app import create_app
-from bewerbungs_pipeline.web.routes import jobs as jobs_routen
+from bewerbungs_pipeline.web.routes import api_jobs as jobs_routen
 
 TEMPLATE = Path(__file__).parent / "fixtures" / "template_mini.html"
 

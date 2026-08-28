@@ -84,7 +84,7 @@ def _warte_auf_task(task_id: str, timeout: float = 60.0):
 
 
 def test_erzeugen_liefert_task_id_und_legt_datensatz_an(tmp_path, monkeypatch):
-    from bewerbungs_pipeline.web.routes import applications as app_routen
+    from bewerbungs_pipeline.web.routes import api_applications as app_routen
 
     cfg = make_cfg(tmp_path)
     job_id = seed(cfg)
@@ -164,7 +164,7 @@ def test_slot_speichern_unbekannt_gibt_400(tmp_path):
 
 
 def test_slot_neu_erzeugen_liefert_task_id(tmp_path, monkeypatch):
-    from bewerbungs_pipeline.web.routes import applications as app_routen
+    from bewerbungs_pipeline.web.routes import api_applications as app_routen
 
     cfg = make_cfg(tmp_path)
     app_id = bewerbung_anlegen(cfg, seed(cfg))

@@ -19,7 +19,7 @@ createRoot(document.getElementById("root")!).render(
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <BrowserRouter basename="/app">
+          <BrowserRouter>
             <Routes>
               <Route element={<Layout />}>
                 <Route index element={<StellenPage />} />

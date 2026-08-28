@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from ... import applications, db, tasks
 from ...applications import ApplicationError
+from ...config import Config
+from ...llm import make_client
 from ..app import get_conn
 from ..schemas import (
     ApplicationCreate,
@@ -14,9 +16,48 @@ from ..schemas import (
     TaskRef,
     job_out,
 )
-from .applications import bewerbung_erzeugen, exportieren_lauf, slot_erzeugen
 
 router = APIRouter(prefix="/api")
+
+
+def _client(cfg: Config):
+    if not (cfg.llm_base_url and cfg.llm_api_key and cfg.llm_model):
+        raise ApplicationError(
+            "LLM_BASE_URL, LLM_API_KEY und LLM_MODEL in .env setzen."
+        )
+    return make_client(cfg.llm_base_url, cfg.llm_api_key)
+
+
+def bewerbung_erzeugen(cfg: Config, job_id: int) -> int:
+    """Hintergrund-Thread: eigene Verbindung, eigener Client."""
+    conn = db.connect(cfg.db_path)
+    try:
+        return applications.create(conn, job_id, cfg, _client(cfg))
+    finally:
+        conn.close()
+
+
+def exportieren_lauf(cfg: Config, app_id: int) -> str:
+    """Hintergrund-Thread: eigene Verbindung.
+
+    Der Export druckt das PDF über einen Browser und braucht dafür Sekunden —
+    zu lang, um eine Anfrage darauf warten zu lassen.
+    """
+    conn = db.connect(cfg.db_path)
+    try:
+        ziel = applications.export(conn, app_id, cfg)
+        return f"Exportiert nach {ziel}"
+    finally:
+        conn.close()
+
+
+def slot_erzeugen(cfg: Config, app_id: int, slot: str) -> str:
+    """Hintergrund-Thread: eigene Verbindung, eigener Client."""
+    conn = db.connect(cfg.db_path)
+    try:
+        return applications.regenerate_slot(conn, app_id, slot, cfg, _client(cfg))
+    finally:
+        conn.close()
 
 
 @router.post("/applications")
