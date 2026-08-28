@@ -1,8 +1,10 @@
+import base64
+import secrets
 import sqlite3
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .. import db
@@ -30,6 +32,36 @@ def get_conn(request: Request) -> sqlite3.Connection:
 def create_app(cfg: Config) -> FastAPI:
     app = FastAPI(title="Bewerbungs-App")
     app.state.cfg = cfg
+
+    if cfg.web_token:
+
+        @app.middleware("http")
+        async def require_web_token(request: Request, call_next):
+            """Schützt /api/* per HTTP Basic Auth, falls JOBS_WEB_TOKEN gesetzt ist.
+
+            Relevant vor allem bei `--host 0.0.0.0` (siehe CLAUDE.md): ohne
+            Auth wäre die API für jeden im selben Netz erreichbar. Basic Auth
+            statt eines Custom-Headers, damit der Browser den Login-Dialog
+            selbst zeigt und die Zugangsdaten für die Session merkt — keine
+            Änderung im Frontend nötig. Der Benutzername wird ignoriert, nur
+            das Passwort zählt.
+            """
+            if request.url.path.startswith("/api/"):
+                header = request.headers.get("authorization", "")
+                password = ""
+                if header.startswith("Basic "):
+                    try:
+                        decoded = base64.b64decode(header[len("Basic "):]).decode("utf-8")
+                        password = decoded.split(":", 1)[1] if ":" in decoded else ""
+                    except (ValueError, UnicodeDecodeError):
+                        password = ""
+                if not secrets.compare_digest(password, cfg.web_token):
+                    return JSONResponse(
+                        {"error": "unauthorized"},
+                        status_code=401,
+                        headers={"WWW-Authenticate": 'Basic realm="Jobschleuse"'},
+                    )
+            return await call_next(request)
 
     vorlagen_ordner = cfg.template_path.parent
     if vorlagen_ordner.is_dir():

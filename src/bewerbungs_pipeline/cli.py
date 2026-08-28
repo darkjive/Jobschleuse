@@ -104,6 +104,12 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     cfg = load_config()
     app = create_app(cfg)
     adresse = f"http://{args.host}:{args.port}"
+    if args.host not in ("127.0.0.1", "localhost", "::1") and not cfg.web_token:
+        print(
+            "[SECURITY] Achtung: --host ist nicht loopback, aber JOBS_WEB_TOKEN ist nicht "
+            "gesetzt — die API ist im ganzen Netz ohne Auth erreichbar. Setze JOBS_WEB_TOKEN "
+            "in .env, wenn das Netz nicht vertrauenswürdig ist."
+        )
     print(f"Bewerbungs-App läuft auf {adresse} — mit Strg+C beenden.")
     if not args.no_browser:
         webbrowser.open(f"http://127.0.0.1:{args.port}")
