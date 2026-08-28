@@ -12,6 +12,8 @@ Python · FastAPI + React/shadcn · SQLite · uv
 
 ---
 
+![Jobschleuse Weboberfläche](docs/screenshot.png)
+
 Sucht Stellenangebote bei der Bundesagentur für Arbeit und optional bei
 Indeed, reichert sie um Fakten an, die die Trefferliste allein nicht hergibt
 (Herkunft, Vermittlerart, Gehalt, Homeoffice, Entfernung, Frische), erkennt
