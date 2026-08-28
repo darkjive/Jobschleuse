@@ -20,3 +20,8 @@ frontend/node_modules/
 skills-lock.json
 /page*.png
 .superpowers/
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.vscode/
+.idea/
