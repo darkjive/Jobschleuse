@@ -26,7 +26,7 @@ function Header() {
 export function Layout() {
   return (
     <HeaderActionsProvider>
-      <div className="mx-auto flex min-h-svh max-w-6xl flex-col">
+      <div className="mx-auto flex h-svh max-w-6xl flex-col">
         <Header />
         <main className="flex-1 overflow-hidden p-6">
           <Outlet />

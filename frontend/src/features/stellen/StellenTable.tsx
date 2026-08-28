@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,6 +75,16 @@ export function StellenTable({
 }: Props) {
   const [ausgewaehlt, setAusgewaehlt] = useState<Set<number>>(new Set());
   const queryClient = useQueryClient();
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarHoehe, setToolbarHoehe] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = toolbarRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => setToolbarHoehe(entry.contentRect.height));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const bulkMutation = useMutation({
     mutationFn: ({ status }: { status: "selected" | "rejected" }) =>
@@ -112,7 +122,10 @@ export function StellenTable({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div
+        ref={toolbarRef}
+        className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background py-2"
+      >
         <SortToolbar sort={sort} order={order} onSortChange={onSortChange} />
         {ausgewaehlt.size > 0 && (
           <div className="flex items-center gap-2 text-sm">
@@ -145,7 +158,10 @@ export function StellenTable({
               ohne horizontales Scrollen auf schmalen Bildschirmen. */}
           <div className="hidden overflow-x-auto rounded-md border border-border md:block">
             <Table>
-              <TableHeader>
+              <TableHeader
+                className="sticky z-10 bg-background"
+                style={{ top: toolbarHoehe }}
+              >
                 <TableRow>
                   <TableHead className="w-10">
                     <Checkbox

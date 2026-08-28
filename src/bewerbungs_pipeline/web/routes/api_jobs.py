@@ -23,7 +23,7 @@ def liste(
     status: str = "",
     q: str = "",
     ort: str = "",
-    verschwunden: str = "",
+    verschwunden: bool = False,
     sort: str = "id",
     order: str = "desc",
     limit: int | None = None,
@@ -34,7 +34,7 @@ def liste(
         status=status or None,
         q=q or None,
         ort=ort or None,
-        mit_verschwundenen=bool(verschwunden),
+        mit_verschwundenen=verschwunden,
         sort=sort,
         order=order,
     )
