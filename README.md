@@ -20,8 +20,6 @@ Indeed, reichert sie um Fakten an, die die Trefferliste allein nicht hergibt
 verschwundene Anzeigen von selbst und füllt für die ausgewählten eine
 Bewerbungsvorlage per LLM.
 
-Specs: [`docs/specs/`](./docs/specs/) · Pläne: [`docs/plans/`](./docs/plans/).
-
 ## Funktionsumfang
 
 | Bereich | Beschreibung |
