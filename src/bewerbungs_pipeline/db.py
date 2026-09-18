@@ -261,10 +261,17 @@ def suche_jobs(
 
 
 def offene_referenzen(conn: sqlite3.Connection) -> list[str]:
-    """Referenznummern aller Stellen, die noch als verfügbar gelten."""
+    """Referenznummern offener Arbeitsagentur-Stellen, die noch als verfügbar gelten.
+
+    Nur diese Quelle, weil die Referenznummern gegen die
+    Arbeitsagentur-API geprüft werden (`arbeitsagentur.check_alive`) —
+    Indeed-Referenzen wären dort nie auffindbar und würden fälschlich
+    als verschwunden markiert.
+    """
     zeilen = conn.execute(
         "SELECT source_ref FROM jobs"
-        " WHERE source_ref IS NOT NULL AND gone_at IS NULL ORDER BY id"
+        " WHERE source_ref IS NOT NULL AND gone_at IS NULL"
+        " AND source = 'arbeitsagentur' ORDER BY id"
     ).fetchall()
     return [zeile["source_ref"] for zeile in zeilen]
 

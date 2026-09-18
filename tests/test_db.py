@@ -261,6 +261,21 @@ def test_offene_referenzen_und_mark_gone(conn):
     assert zeile["gone_at"] is not None
 
 
+def test_offene_referenzen_ignoriert_andere_quellen(conn):
+    db.insert_job(conn, make_item(url="http://a", source_ref="ref-a"))
+    db.insert_job(
+        conn,
+        make_item(
+            url="http://b",
+            source="indeed",
+            source_ref="indeed-ref-b",
+            title="Zweiter",
+        ),
+    )
+
+    assert db.offene_referenzen(conn) == ["ref-a"]
+
+
 def test_mark_gone_ohne_referenzen(conn):
     db.insert_job(conn, make_item(source_ref="ref-a"))
     assert db.mark_gone(conn, set()) == 0
