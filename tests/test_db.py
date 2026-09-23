@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import threading
 from datetime import UTC, date, datetime
@@ -209,7 +210,9 @@ def test_migration_erhaelt_bestandsdaten(tmp_path):
     assert len(zeilen) == 1
     assert zeilen[0]["title"] == "Alt"
     assert zeilen[0]["gone_at"] is None
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+    assert zeilen[0]["score"] is None
+    assert zeilen[0]["tags"] is None
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION
     conn.close()
 
 
@@ -218,7 +221,7 @@ def test_migration_ist_wiederholbar(tmp_path):
     pfad = tmp_path / "zweimal.db"
     db.connect(pfad).close()
     conn = db.connect(pfad)
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION
     conn.close()
 
 
@@ -336,3 +339,90 @@ def test_set_status_bulk_lehnt_unbekannten_status_ab(conn):
     job_id = db.list_jobs(conn)[0]["id"]
     with pytest.raises(ValueError):
         db.set_status_bulk(conn, [job_id], "geloescht")
+
+
+def test_migration_v2_auf_v3_ruestet_bewertungsspalten_nach(tmp_path):
+    pfad = tmp_path / "v2.db"
+    conn = db.connect(pfad)
+    db.insert_job(conn, make_item())
+    conn.close()
+    # Datenbank künstlich auf Stand v2 zurückdrehen: Spalten weg, Version 2.
+    alt = sqlite3.connect(pfad)
+    for spalte in ("score", "score_reason", "tags", "rated_at"):
+        alt.execute(f"ALTER TABLE jobs DROP COLUMN {spalte}")
+    alt.execute("PRAGMA user_version = 2")
+    alt.commit()
+    alt.close()
+
+    conn = db.connect(pfad)
+    spalten = {z["name"] for z in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+    assert {"score", "score_reason", "tags", "rated_at"} <= spalten
+    assert len(db.list_jobs(conn)) == 1
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+    conn.close()
+
+
+def test_set_rating_speichert_und_normalisiert(conn):
+    db.insert_job(conn, make_item())
+    db.set_rating(conn, 1, 80, "passt gut", [" Python", "react", "PYTHON", "", "React "])
+    row = db.get_job(conn, 1)
+    assert row["score"] == 80
+    assert row["score_reason"] == "passt gut"
+    assert json.loads(row["tags"]) == ["python", "react"]
+    assert row["rated_at"] is not None
+
+
+def test_set_rating_grenzwerte(conn):
+    db.insert_job(conn, make_item())
+    db.set_rating(conn, 1, 0, "", [])
+    assert db.get_job(conn, 1)["score"] == 0
+    db.set_rating(conn, 1, 100, "", [])
+    assert db.get_job(conn, 1)["score"] == 100
+    for falsch in (-1, 101):
+        with pytest.raises(ValueError):
+            db.set_rating(conn, 1, falsch, "", [])
+    assert db.get_job(conn, 1)["score"] == 100
+
+
+def test_set_ratings_bulk_schreibt_nichts_bei_ungueltigem_score(conn):
+    db.insert_job(conn, make_item(url="http://a"))
+    db.insert_job(conn, make_item(url="http://b", title="Zweite"))
+    with pytest.raises(ValueError):
+        db.set_ratings_bulk(
+            conn, [db.Rating(1, 50, "ok", []), db.Rating(2, 150, "kaputt", [])]
+        )
+    assert db.get_job(conn, 1)["score"] is None
+
+
+def test_set_ratings_bulk_zaehlt_eingaben(conn):
+    db.insert_job(conn, make_item())
+    anzahl = db.set_ratings_bulk(
+        conn, [db.Rating(1, 10, "erst", []), db.Rating(1, 90, "dann", ["x"])]
+    )
+    assert anzahl == 2
+    assert db.get_job(conn, 1)["score"] == 90
+
+
+def test_bewertung_ueberlebt_erneutes_einfuegen(conn):
+    db.insert_job(conn, make_item())
+    db.set_rating(conn, 1, 70, "gut", ["python"])
+    assert db.insert_job(conn, make_item()) is False
+    assert db.get_job(conn, 1)["score"] == 70
+
+
+def test_suche_jobs_filtert_unbewertet_und_min_score(conn):
+    for i, titel in enumerate(("A", "B", "C"), start=1):
+        db.insert_job(conn, make_item(url=f"http://{i}", title=titel))
+    db.set_rating(conn, 1, 40, "", [])
+    db.set_rating(conn, 2, 90, "", [])
+    assert [r["id"] for r in db.suche_jobs(conn, unbewertet=True)] == [3]
+    assert [r["id"] for r in db.suche_jobs(conn, min_score=50)] == [2]
+
+
+def test_suche_jobs_sortiert_nach_score_unbewertete_zuletzt(conn):
+    for i, titel in enumerate(("A", "B", "C"), start=1):
+        db.insert_job(conn, make_item(url=f"http://{i}", title=titel))
+    db.set_rating(conn, 1, 40, "", [])
+    db.set_rating(conn, 3, 90, "", [])
+    rows = db.suche_jobs(conn, sort="score", order="desc")
+    assert [r["id"] for r in rows] == [3, 1, 2]

@@ -1,7 +1,9 @@
 import hashlib
+import json
 import sqlite3
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import NamedTuple
 
 from .models import JobItem
 
@@ -15,9 +17,10 @@ _SORT_SPALTEN = {
     "distance_km": "distance_km",
     "company": "company",
     "title": "title",
+    "score": "score",
 }
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -51,7 +54,11 @@ CREATE TABLE IF NOT EXISTS jobs (
     plz TEXT,
     education TEXT,
     employer_hash TEXT,
-    gone_at TEXT
+    gone_at TEXT,
+    score INTEGER,
+    score_reason TEXT,
+    tags TEXT,
+    rated_at TEXT
 )
 """
 
@@ -73,6 +80,14 @@ NEUE_SPALTEN_V2 = (
     ("education", "TEXT"),
     ("employer_hash", "TEXT"),
     ("gone_at", "TEXT"),
+)
+
+# Bewertungen eines externen Agents (jobs rate), ab Schema-Version 3.
+NEUE_SPALTEN_V3 = (
+    ("score", "INTEGER"),
+    ("score_reason", "TEXT"),
+    ("tags", "TEXT"),
+    ("rated_at", "TEXT"),
 )
 
 SCHEMA_APPLICATIONS = """
@@ -98,21 +113,26 @@ CREATE TABLE IF NOT EXISTS application_slots (
 """
 
 
+def _spalten_nachruesten(conn: sqlite3.Connection, spalten) -> None:
+    # Spaltenweise statt Tabellenneubau: die Bestandsdatenbank haengt an
+    # Bewerbungen, die einen Fremdschluessel auf jobs.id halten.
+    vorhanden = {
+        zeile["name"] for zeile in conn.execute("PRAGMA table_info(jobs)").fetchall()
+    }
+    for name, typ in spalten:
+        if name not in vorhanden:
+            conn.execute(f"ALTER TABLE jobs ADD COLUMN {name} {typ}")
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """Führt Schemaschritte aus, die über CREATE TABLE hinausgehen."""
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version < 1:
         conn.execute("UPDATE jobs SET status = 'selected' WHERE status = 'generated'")
     if version < 2:
-        # Spaltenweise statt Tabellenneubau: die Bestandsdatenbank haengt an
-        # Bewerbungen, die einen Fremdschluessel auf jobs.id halten.
-        vorhanden = {
-            zeile["name"]
-            for zeile in conn.execute("PRAGMA table_info(jobs)").fetchall()
-        }
-        for name, typ in NEUE_SPALTEN_V2:
-            if name not in vorhanden:
-                conn.execute(f"ALTER TABLE jobs ADD COLUMN {name} {typ}")
+        _spalten_nachruesten(conn, NEUE_SPALTEN_V2)
+    if version < 3:
+        _spalten_nachruesten(conn, NEUE_SPALTEN_V3)
     if version < SCHEMA_VERSION:
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
@@ -230,6 +250,8 @@ def suche_jobs(
     q: str | None = None,
     ort: str | None = None,
     mit_verschwundenen: bool = False,
+    unbewertet: bool = False,
+    min_score: int | None = None,
     sort: str = "id",
     order: str = "desc",
 ) -> list[sqlite3.Row]:
@@ -238,13 +260,15 @@ def suche_jobs(
     `q` sucht in Titel und Firma, `ort` im Ort — beides ohne
     Beachtung der Groß-/Kleinschreibung. Stellen, deren Anzeige bei der
     Quelle verschwunden ist, bleiben aussen vor, solange
-    `mit_verschwundenen` nicht gesetzt ist. `sort` läuft über eine feste
+    `mit_verschwundenen` nicht gesetzt ist. `unbewertet` beschränkt auf
+    Stellen ohne Score, `min_score` auf Stellen mit mindestens diesem Score.
+    `sort` läuft über eine feste
     Spalten-Whitelist; unbekannte Werte fallen still auf `id` zurück.
     """
     spalte = _SORT_SPALTEN.get(sort, "id")
     richtung = "ASC" if order == "asc" else "DESC"
     sql = "SELECT * FROM jobs WHERE 1=1"
-    werte: list[str] = []
+    werte: list[str | int] = []
     if not mit_verschwundenen:
         sql += " AND gone_at IS NULL"
     if status:
@@ -256,6 +280,11 @@ def suche_jobs(
     if ort:
         sql += " AND LOWER(location) LIKE ?"
         werte.append(f"%{ort.lower()}%")
+    if unbewertet:
+        sql += " AND score IS NULL"
+    if min_score is not None:
+        sql += " AND score >= ?"
+        werte.append(min_score)
     sql += f" ORDER BY {spalte} {richtung}"
     return conn.execute(sql, werte).fetchall()
 
@@ -324,3 +353,53 @@ def row_to_item(row: sqlite3.Row) -> JobItem:
         employer_hash=row["employer_hash"],
         gone_at=datetime.fromisoformat(row["gone_at"]) if row["gone_at"] else None,
     )
+
+
+class Rating(NamedTuple):
+    job_id: int
+    score: int
+    reason: str
+    tags: list[str]
+
+
+def _normalisiere_tags(tags: list[str]) -> list[str]:
+    ergebnis: list[str] = []
+    for tag in tags:
+        sauber = tag.strip().lower()
+        if sauber and sauber not in ergebnis:
+            ergebnis.append(sauber)
+    return ergebnis
+
+
+def set_ratings_bulk(conn: sqlite3.Connection, ratings: list[Rating]) -> int:
+    """Speichert Bewertungen in einer Transaktion; prüft alle Scores vorher.
+
+    Mehrere Bewertungen derselben Stelle: die letzte gewinnt. Zurück kommt
+    die Zahl der Eingaben, nicht die der geänderten Zeilen.
+    """
+    for rating in ratings:
+        if not 0 <= rating.score <= 100:
+            raise ValueError(f"Score muss zwischen 0 und 100 liegen: {rating.score}")
+    jetzt = datetime.now(UTC).isoformat()
+    conn.executemany(
+        "UPDATE jobs SET score = ?, score_reason = ?, tags = ?, rated_at = ?"
+        " WHERE id = ?",
+        [
+            (
+                r.score,
+                r.reason,
+                json.dumps(_normalisiere_tags(r.tags), ensure_ascii=False),
+                jetzt,
+                r.job_id,
+            )
+            for r in ratings
+        ],
+    )
+    conn.commit()
+    return len(ratings)
+
+
+def set_rating(
+    conn: sqlite3.Connection, job_id: int, score: int, reason: str, tags: list[str]
+) -> None:
+    set_ratings_bulk(conn, [Rating(job_id, score, reason, tags)])
