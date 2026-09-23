@@ -214,7 +214,7 @@ def render(conn, app_id: int, cfg: Config) -> str:
         raise ApplicationError(f"Vorlage fehlerhaft: {exc}") from exc
 
 
-_VERWEIS_RE = re.compile(r'(?:href|src)="(?!https?:|data:|#)([^"]+)"')
+_VERWEIS_RE = re.compile(r'(?:href|src)="(?!https?:|mailto:|tel:|data:|#)([^"]+)"')
 
 
 def _pruefe_verweise(html_datei: Path) -> None:

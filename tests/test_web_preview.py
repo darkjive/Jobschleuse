@@ -86,6 +86,11 @@ def test_pfade_umschreiben_laesst_absolute_pfade_in_ruhe():
     assert preview_routen.pfade_umschreiben(html) == html
 
 
+def test_pfade_umschreiben_laesst_mailto_und_tel_in_ruhe():
+    html = '<a href="mailto:a@b.de">Mail</a><a href="tel:+491234">Anruf</a>'
+    assert preview_routen.pfade_umschreiben(html) == html
+
+
 def test_vorschau_liefert_gefuelltes_html(tmp_path):
     cfg = make_cfg(tmp_path)
     app_id = bewerbung_anlegen(cfg, seed(cfg))

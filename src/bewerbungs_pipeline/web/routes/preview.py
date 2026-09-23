@@ -12,7 +12,7 @@ from ..app import get_conn
 router = APIRouter()
 
 _ASSET_RE = re.compile(
-    r'(?P<attr>\b(?:href|src)=")(?P<pfad>(?!https?:|/|data:|#)[^"]+)"'
+    r'(?P<attr>\b(?:href|src)=")(?P<pfad>(?!https?:|mailto:|tel:|/|data:|#)[^"]+)"'
 )
 
 

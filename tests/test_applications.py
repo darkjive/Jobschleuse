@@ -144,6 +144,14 @@ def test_get_by_job_returns_none_without_application(tmp_path):
     assert applications.get_by_job(conn, job_id) is None
 
 
+def test_pruefe_verweise_ignoriert_mailto_und_tel(tmp_path, capsys):
+    """mailto:/tel: sind keine Datei-Verweise — dürfen keine Warnung auslösen."""
+    datei = tmp_path / "index.html"
+    datei.write_text('<a href="mailto:a@b.de">Mail</a><a href="tel:+491234">Anruf</a>')
+    applications._pruefe_verweise(datei)
+    assert capsys.readouterr().err == ""
+
+
 def test_slugify():
     assert applications.slugify("AC Motoren GmbH & Co. KG") == "ac-motoren-gmbh-co-kg"
     assert applications.slugify("Müllerößä") != ""
