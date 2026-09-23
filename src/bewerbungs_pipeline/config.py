@@ -17,7 +17,7 @@ class Config:
     llm_base_url: str
     llm_api_key: str
     llm_model: str
-    web_token: str
+    web_token: str = ""
 
 
 def load_config() -> Config:
