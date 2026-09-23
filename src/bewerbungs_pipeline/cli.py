@@ -4,7 +4,8 @@ import sys
 
 from . import db
 from .config import load_config
-from .sources import arbeitsagentur
+from .pipeline import fetch_arbeitsagentur, fetch_indeed
+from .sources import arbeitsagentur  # noqa: F401  (Tests patchen darüber)
 
 
 def _json_out(daten) -> None:
@@ -18,7 +19,8 @@ def _json_flag(parser: argparse.ArgumentParser) -> None:
 def _cmd_fetch(args: argparse.Namespace) -> int:
     cfg = load_config()
     conn = db.connect(cfg.db_path)
-    items = arbeitsagentur.fetch_jobs(
+    fetched, inserted, weg = fetch_arbeitsagentur(
+        conn,
         was=args.what,
         wo=args.where,
         umkreis=args.radius,
@@ -26,32 +28,28 @@ def _cmd_fetch(args: argparse.Namespace) -> int:
         ohne_zeitarbeit=args.no_temp_agency,
         nur_arbeit=args.jobs_only,
     )
-    inserted = sum(1 for item in items if db.insert_job(conn, item))
-    weg = db.mark_gone(conn, arbeitsagentur.check_alive(db.offene_referenzen(conn)))
     if args.json:
-        _json_out({"fetched": len(items), "new": inserted, "gone": weg})
+        _json_out({"fetched": fetched, "new": inserted, "gone": weg})
     else:
-        print(f"{len(items)} Stellen geholt, {inserted} neu, {weg} nicht mehr verfügbar.")
+        print(f"{fetched} Stellen geholt, {inserted} neu, {weg} nicht mehr verfügbar.")
     return 0
 
 
 def _cmd_fetch_indeed(args: argparse.Namespace) -> int:
-    from .sources import indeed
-
     cfg = load_config()
     conn = db.connect(cfg.db_path)
-    items = indeed.fetch_jobs(
+    fetched, inserted = fetch_indeed(
+        conn,
         was=args.what,
         wo=args.where,
         umkreis=args.radius,
-        seit_stunden=args.since * 24 if args.since is not None else None,
+        seit_tage=args.since,
         ergebnisse=args.limit,
     )
-    inserted = sum(1 for item in items if db.insert_job(conn, item))
     if args.json:
-        _json_out({"fetched": len(items), "new": inserted})
+        _json_out({"fetched": fetched, "new": inserted})
     else:
-        print(f"{len(items)} Stellen geholt, {inserted} neu.")
+        print(f"{fetched} Stellen geholt, {inserted} neu.")
     return 0
 
 
@@ -236,16 +234,15 @@ def _set_status(ids: list[int], status: str, als_json: bool) -> int:
 
 def _cmd_generate(args: argparse.Namespace) -> int:
     from .generate import generate_application
-    from .llm import make_client
+    from .llm import GenerationError, client_aus_config
 
     cfg = load_config()
-    if not (cfg.llm_base_url and cfg.llm_api_key and cfg.llm_model):
-        print(
-            "LLM_BASE_URL, LLM_API_KEY und LLM_MODEL in .env setzen.", file=sys.stderr
-        )
+    try:
+        client = client_aus_config(cfg)
+    except GenerationError as exc:
+        print(exc, file=sys.stderr)
         return 1
     conn = db.connect(cfg.db_path)
-    client = make_client(cfg.llm_base_url, cfg.llm_api_key)
     out_dir = generate_application(conn, args.id, cfg, client)
     print(f"Fertig: {out_dir / 'index.html'}")
     return 0

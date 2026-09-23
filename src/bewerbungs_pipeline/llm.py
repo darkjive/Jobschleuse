@@ -84,6 +84,17 @@ def make_client(base_url: str, api_key: str) -> OpenAI:
     return OpenAI(base_url=base_url, api_key=api_key)
 
 
+def client_aus_config(cfg) -> OpenAI:
+    """Baut den LLM-Client aus der Config oder meldet, was fehlt.
+
+    Gemeinsame Prüfung für CLI (`generate`) und Web (Bewerbung erzeugen,
+    Slot neu erzeugen) — beide brauchen dieselbe Fehlermeldung.
+    """
+    if not (cfg.llm_base_url and cfg.llm_api_key and cfg.llm_model):
+        raise GenerationError("LLM_BASE_URL, LLM_API_KEY und LLM_MODEL in .env setzen.")
+    return make_client(cfg.llm_base_url, cfg.llm_api_key)
+
+
 def build_prompt(job: JobItem, slots: dict[str, str], profile: dict) -> str:
     return PROMPT_TEMPLATE.format(
         title=job.title,

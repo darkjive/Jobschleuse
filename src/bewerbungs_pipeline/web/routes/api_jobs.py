@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from ... import applications, db, tasks
 from ...config import Config
-from ...sources import arbeitsagentur, indeed
+from ...pipeline import fetch_arbeitsagentur, fetch_indeed
+from ...sources import arbeitsagentur, indeed  # noqa: F401  (Tests patchen darüber)
 from ..app import get_conn
 from ..schemas import (
     BulkStatusUpdate,
@@ -94,23 +95,20 @@ def suche_ausfuehren(
     nur_arbeit: bool,
 ) -> str:
     """Läuft im Hintergrund-Thread — öffnet deshalb eine eigene Verbindung."""
-    items = arbeitsagentur.fetch_jobs(
-        was=was,
-        wo=wo,
-        umkreis=umkreis,
-        veroeffentlicht_seit=veroeffentlicht_seit,
-        ohne_zeitarbeit=ohne_zeitarbeit,
-        nur_arbeit=nur_arbeit,
-    )
     conn = db.connect(cfg.db_path)
     try:
-        neu = sum(1 for item in items if db.insert_job(conn, item))
-        # Bei der Gelegenheit den Bestand nachziehen: derselbe Abruf, der
-        # gerade neue Treffer geprueft hat, taugt auch fuer die alten.
-        weg = db.mark_gone(conn, arbeitsagentur.check_alive(db.offene_referenzen(conn)))
+        fetched, neu, weg = fetch_arbeitsagentur(
+            conn,
+            was=was,
+            wo=wo,
+            umkreis=umkreis,
+            veroeffentlicht_seit=veroeffentlicht_seit,
+            ohne_zeitarbeit=ohne_zeitarbeit,
+            nur_arbeit=nur_arbeit,
+        )
     finally:
         conn.close()
-    return f"{len(items)} Stellen geholt, {neu} neu, {weg} nicht mehr verfügbar."
+    return f"{fetched} Stellen geholt, {neu} neu, {weg} nicht mehr verfügbar."
 
 
 def suche_indeed_ausfuehren(
@@ -121,18 +119,12 @@ def suche_indeed_ausfuehren(
     seit_tage: int | None,
 ) -> str:
     """Läuft im Hintergrund-Thread — öffnet deshalb eine eigene Verbindung."""
-    items = indeed.fetch_jobs(
-        was=was,
-        wo=wo,
-        umkreis=umkreis,
-        seit_stunden=seit_tage * 24 if seit_tage is not None else None,
-    )
     conn = db.connect(cfg.db_path)
     try:
-        neu = sum(1 for item in items if db.insert_job(conn, item))
+        fetched, neu = fetch_indeed(conn, was=was, wo=wo, umkreis=umkreis, seit_tage=seit_tage)
     finally:
         conn.close()
-    return f"{len(items)} Stellen geholt, {neu} neu."
+    return f"{fetched} Stellen geholt, {neu} neu."
 
 
 @router.post("/jobs/fetch")
