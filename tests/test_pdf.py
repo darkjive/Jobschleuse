@@ -1,4 +1,5 @@
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -23,6 +24,22 @@ braucht_browser = pytest.mark.skipif(
 def test_browser_pfad_findet_chromium_oder_gibt_none():
     pfad = pdf.browser_pfad()
     assert pfad is None or shutil.which(pfad) or pfad.startswith("/")
+
+
+def test_browser_pfad_faellt_auf_playwright_zurueck(monkeypatch, tmp_path):
+    """Docker-Images ohne Systempaket: `playwright install chromium` muss
+    reichen, auch ohne `chromium`/`google-chrome` im PATH."""
+    fake = tmp_path / "chrome"
+    fake.write_text("")
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    monkeypatch.setattr(pdf, "_playwright_browser_pfad", lambda: str(fake))
+    assert pdf.browser_pfad() == str(fake)
+
+
+def test_browser_pfad_ohne_systempaket_und_ohne_playwright_browser(monkeypatch):
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    monkeypatch.setattr(pdf, "_playwright_browser_pfad", lambda: None)
+    assert pdf.browser_pfad() is None
 
 
 @braucht_browser
