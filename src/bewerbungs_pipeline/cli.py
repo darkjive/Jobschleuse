@@ -155,6 +155,69 @@ def _cmd_show(args: argparse.Namespace) -> int:
     return 0
 
 
+def _ist_int(wert) -> bool:
+    # bool ist in Python eine int-Unterklasse; true/false ist kein Score.
+    return isinstance(wert, int) and not isinstance(wert, bool)
+
+
+def _pruefe_bewertung(daten, conn) -> db.Rating:
+    """Prüft eine Bewertung; ValueError mit deutscher Meldung bei Fehlern."""
+    if not isinstance(daten, dict):
+        raise ValueError("JSON-Objekt erwartet")
+    job_id = daten.get("id")
+    score = daten.get("score")
+    reason = daten.get("reason")
+    tags = daten.get("tags", [])
+    if not _ist_int(job_id):
+        raise ValueError("id fehlt oder ist keine Ganzzahl")
+    if db.get_job(conn, job_id) is None:
+        raise ValueError(f"Job {job_id} nicht gefunden")
+    if not _ist_int(score) or not 0 <= score <= 100:
+        raise ValueError("score muss eine Ganzzahl von 0 bis 100 sein")
+    if not isinstance(reason, str):
+        raise ValueError("reason fehlt oder ist kein Text")
+    if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags):
+        raise ValueError("tags muss eine Liste aus Texten sein")
+    return db.Rating(job_id, score, reason, tags)
+
+
+def _cmd_rate(args: argparse.Namespace) -> int:
+    einzeln = any(v is not None for v in (args.id, args.score, args.reason, args.tags))
+    if args.stdin == einzeln:
+        print("Entweder ID mit --score/--reason oder --stdin angeben.", file=sys.stderr)
+        return 2
+    if einzeln and (args.id is None or args.score is None or args.reason is None):
+        print("ID, --score und --reason sind Pflicht.", file=sys.stderr)
+        return 2
+    cfg = load_config()
+    conn = db.connect(cfg.db_path)
+    bewertungen: list[db.Rating] = []
+    if args.stdin:
+        for nr, zeile in enumerate(sys.stdin, start=1):
+            if not zeile.strip():
+                continue
+            try:
+                # json.JSONDecodeError ist eine ValueError-Unterklasse.
+                bewertungen.append(_pruefe_bewertung(json.loads(zeile), conn))
+            except ValueError as exc:
+                print(f"Zeile {nr}: {exc}", file=sys.stderr)
+                return 1
+    else:
+        tags = args.tags.split(",") if args.tags else []
+        daten = {"id": args.id, "score": args.score, "reason": args.reason, "tags": tags}
+        try:
+            bewertungen.append(_pruefe_bewertung(daten, conn))
+        except ValueError as exc:
+            print(exc, file=sys.stderr)
+            return 1
+    anzahl = db.set_ratings_bulk(conn, bewertungen)
+    if args.json:
+        _json_out({"rated": anzahl})
+    else:
+        print(f"{anzahl} Stellen bewertet.")
+    return 0
+
+
 def _set_status(job_id: int, status: str) -> int:
     cfg = load_config()
     conn = db.connect(cfg.db_path)
@@ -261,6 +324,19 @@ def main(argv: list[str] | None = None) -> int:
     p_show.add_argument("ids", type=int, nargs="+", metavar="ID")
     _json_flag(p_show)
     p_show.set_defaults(func=_cmd_show)
+
+    p_rate = sub.add_parser("rate", help="Stellen bewerten (Score 0–100)")
+    p_rate.add_argument("id", type=int, nargs="?", metavar="ID")
+    p_rate.add_argument("--score", type=int, default=None, help="0 bis 100")
+    p_rate.add_argument("--reason", default=None, help="kurze Begründung")
+    p_rate.add_argument("--tags", default=None, help="kommagetrennt, z. B. python,react")
+    p_rate.add_argument(
+        "--stdin",
+        action="store_true",
+        help='NDJSON von stdin: {"id", "score", "reason", "tags"} je Zeile',
+    )
+    _json_flag(p_rate)
+    p_rate.set_defaults(func=_cmd_rate)
 
     p_check = sub.add_parser("check", help="Bestand auf verschwundene Anzeigen prüfen")
     _json_flag(p_check)

@@ -1,3 +1,4 @@
+import io
 import json
 from datetime import UTC, datetime
 
@@ -312,3 +313,88 @@ def test_show_menschlich(env, capsys):
     out = capsys.readouterr().out
     assert "Mechatroniker (m/w/d)" in out
     assert "Wir suchen Verstärkung." in out
+
+
+def _bewertung(env, job_id):
+    conn = db.connect(env / "jobs.db")
+    row = db.get_job(conn, job_id)
+    conn.close()
+    return row["score"], row["score_reason"], json.loads(row["tags"] or "[]")
+
+
+def test_rate_einzeln(env, capsys):
+    job_id = seed(env / "jobs.db")
+    rc = cli.main(
+        ["rate", str(job_id), "--score", "85", "--reason", "passt", "--tags", "Python, react,,"]
+    )
+    assert rc == 0
+    assert _bewertung(env, job_id) == (85, "passt", ["python", "react"])
+    assert "1 Stellen bewertet." in capsys.readouterr().out
+
+
+def test_rate_einzeln_ungueltiger_score(env, capsys):
+    job_id = seed(env / "jobs.db")
+    assert cli.main(["rate", str(job_id), "--score", "101", "--reason", "x"]) == 1
+    assert _bewertung(env, job_id)[0] is None
+
+
+def test_rate_einzeln_unbekannte_id(env, capsys):
+    seed(env / "jobs.db")
+    assert cli.main(["rate", "999", "--score", "50", "--reason", "x"]) == 1
+    assert "999" in capsys.readouterr().err
+
+
+def test_rate_stdin(env, monkeypatch, capsys):
+    a, b = seed_many(env / "jobs.db", ["A", "B"])
+    eingabe = (
+        json.dumps({"id": a, "score": 70, "reason": "gut", "tags": ["python"]}) + "\r\n"
+        + "\n"
+        + json.dumps({"id": b, "score": 20, "reason": "nein"}) + "\n"
+    )
+    monkeypatch.setattr("sys.stdin", io.StringIO(eingabe))
+    assert cli.main(["rate", "--stdin", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"rated": 2}
+    assert _bewertung(env, a) == (70, "gut", ["python"])
+    assert _bewertung(env, b) == (20, "nein", [])
+
+
+def test_rate_stdin_doppelte_id_letzte_gewinnt(env, monkeypatch, capsys):
+    a = seed(env / "jobs.db")
+    eingabe = (
+        json.dumps({"id": a, "score": 10, "reason": "erst"}) + "\n"
+        + json.dumps({"id": a, "score": 90, "reason": "dann"}) + "\n"
+    )
+    monkeypatch.setattr("sys.stdin", io.StringIO(eingabe))
+    assert cli.main(["rate", "--stdin", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"rated": 2}
+    assert _bewertung(env, a)[:2] == (90, "dann")
+
+
+@pytest.mark.parametrize(
+    "zweite_zeile",
+    [
+        "kein json",
+        '{"id": 999, "score": 50, "reason": "x"}',
+        '{"id": 1, "score": true, "reason": "x"}',
+        '{"id": 1, "score": 50.5, "reason": "x"}',
+        '{"id": 1, "score": 50}',
+        '{"id": 1, "score": 50, "reason": "x", "tags": "python"}',
+        "[1, 2]",
+    ],
+)
+def test_rate_stdin_alles_oder_nichts(env, monkeypatch, capsys, zweite_zeile):
+    a = seed(env / "jobs.db")
+    eingabe = json.dumps({"id": a, "score": 70, "reason": "gut"}) + "\n" + zweite_zeile + "\n"
+    monkeypatch.setattr("sys.stdin", io.StringIO(eingabe))
+    assert cli.main(["rate", "--stdin"]) == 1
+    captured = capsys.readouterr()
+    assert "Zeile 2" in captured.err
+    assert captured.out == ""
+    assert _bewertung(env, a)[0] is None
+
+
+def test_rate_braucht_genau_eine_form(env, capsys):
+    job_id = seed(env / "jobs.db")
+    assert cli.main(["rate"]) == 2
+    assert cli.main(["rate", "--stdin", str(job_id)]) == 2
+    assert cli.main(["rate", str(job_id), "--score", "50"]) == 2
