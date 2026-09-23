@@ -25,6 +25,7 @@ Bewerbungsvorlage per LLM.
 | Bereich | Beschreibung |
 |---|---|
 | Suche | Bundesagentur-Schnittstelle (`fetch`) und Indeed via jobspy (`fetch-indeed`); Filter nach Umkreis, Alter (`--since`), ohne Zeitarbeit, nur Arbeitsstellen (keine Ausbildung) |
+| Karriereseiten | öffentliche Stellenfeeds von Personio, Greenhouse, Lever, Recruitee und SmartRecruiters (`fetch-career`) — Firmen werden aus den Links gespeicherter Anzeigen automatisch erkannt oder per `career-add` eingetragen |
 | Anreicherung | Herkunft (Direktarbeitgeber/Vermittler/Zeitarbeit), Gehalt, Homeoffice, Vertrag, Arbeitszeit, Adresse, Entfernung — parallel nachgeladen, ohne die Suche zu verlangsamen |
 | Bestandspflege | erkennt bei jeder Suche und per `jobs check`, welche gespeicherten Anzeigen bei der Quelle verschwunden sind; markiert statt zu löschen |
 | Verwaltung | Status je Stelle (`new` / `selected` / `rejected`) über CLI oder Weboberfläche |
@@ -48,6 +49,29 @@ Für den PDF-Export muss zusätzlich ein Chromium-Browser installiert sein
 (`chromium`, `google-chrome` oder `brave` — Playwright steuert ihn nur,
 lädt aber selbst keinen nach). Ohne das läuft alles außer `jobs generate`
 normal, der Export bricht mit einer entsprechenden Meldung ab.
+
+## Stellen direkt von Karriereseiten
+
+Viele Firmen verwalten ihre Stellen in einem Bewerbermanagement-System,
+dessen Stellenfeed öffentlich und ohne Schlüssel abrufbar ist — genau dafür
+gedacht, dass andere die Anzeigen übernehmen. Verlinkt eine gespeicherte
+Anzeige auf so eine Seite (etwa `firma.jobs.personio.de`), merkt sich
+Jobschleuse die Firma und fragt künftig ihren Feed direkt ab. So kommen
+auch Stellen herein, die nie an die Arbeitsagentur gemeldet wurden.
+
+    uv run jobs fetch-career --what "Lager" --where "Kassel"
+    uv run jobs career-list                  # bekannte Seiten, letzter Abruf, Fehler
+    uv run jobs career-add https://jobs.lever.co/firma --company "Firma GmbH"
+
+`--where` vergleicht nur den Ortsnamen (Stellen mit Homeoffice gelten als
+überall) — die Feeds liefern keine Koordinaten, ein Umkreis ist nicht
+möglich. Was aus dem Feed einer Firma verschwindet, wird wie bei der
+Arbeitsagentur als verschwunden markiert.
+
+Ist eine Beschreibung zu kurz, holt `show`/`generate` den Volltext zudem
+aus den strukturierten Stellendaten (schema.org `JobPosting`) der
+verlinkten Firmenseite — ein Abruf pro Stelle, mit erkennbarem
+User-Agent und nur, wenn die `robots.txt` der Seite ihn erlaubt.
 
 ## Für Agents
 
@@ -110,6 +134,8 @@ eventuell schon erzeugten Bewerbung.
     src/bewerbungs_pipeline/
       sources/arbeitsagentur.py   Suche, Anreicherung, Verfügbarkeitsprüfung
       sources/indeed.py           Suche über python-jobspy
+      sources/karriereseiten.py   Stellenfeeds von Bewerbermanagement-Systemen
+      sources/jsonld.py           schema.org/JobPosting von Firmenseiten (robots.txt-konform)
       sources/normalisierung.py   Rohwerte der Quelle → Anzeigewerte (rein, ohne Seiteneffekt)
       db.py                       SQLite-Schema, Migration, Zugriff
       models.py                   JobItem — Datenmodell für Stellen

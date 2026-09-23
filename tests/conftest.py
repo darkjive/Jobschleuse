@@ -38,3 +38,17 @@ def _verbindungen_aufraeumen(monkeypatch):
     yield
     for conn in offen:
         conn.close()
+
+
+@pytest.fixture(autouse=True)
+def _kein_abruf_von_firmenseiten(monkeypatch):
+    """`ensure_description` fragt bei kurzer Beschreibung die Firmenseite an.
+
+    Tests, die Stellen mit Beispiel-URLs anlegen, sollen dabei nicht ins
+    Netz gehen. Wer den Abruf selbst prüft, importiert die echte Funktion
+    beim Laden des Moduls (vor diesem Fixture) oder patcht erneut.
+    """
+    from bewerbungs_pipeline.sources import jsonld
+
+    monkeypatch.setattr(jsonld, "abrufen", lambda url, client=None: None)
+    jsonld._robots_cache.clear()
