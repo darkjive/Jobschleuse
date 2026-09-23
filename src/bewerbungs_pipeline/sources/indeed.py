@@ -48,8 +48,7 @@ def _parse_date(value) -> date | None:
         return None
 
 
-def _betrag(wert: float) -> str:
-    return f"{int(wert):,}".replace(",", ".")
+_betrag = normalisierung.formatiere_ganzzahl_betrag
 
 
 def gehalt(row: dict) -> str | None:

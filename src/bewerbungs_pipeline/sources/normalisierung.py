@@ -17,16 +17,23 @@ TEILZEIT_MERKMALE = (
 )
 
 
+def formatiere_ganzzahl_betrag(wert: float) -> str:
+    """1234 → '1.234' — deutsches Tausendertrennzeichen, ohne Nachkommastellen.
+
+    Geteilt mit indeed.py: beide runden Gehaltsangaben auf ganze Beträge.
+    """
+    return f"{int(wert):,}".replace(",", ".")
+
+
 def _betrag(wert: float) -> str:
-    """1234.5 → '1.234,50' — deutsche Schreibweise."""
+    """1234.5 → '1.234,50' — deutsche Schreibweise, mit Cent-Beträgen."""
     return f"{wert:,.2f}".replace(",", "#").replace(".", ",").replace("#", ".")
 
 
 def gehalt(entry: dict) -> str | None:
     festgehalt = entry.get("festgehalt")
     if festgehalt:
-        ganz = f"{int(festgehalt):,}".replace(",", ".")
-        return f"{ganz} €/Jahr"
+        return f"{formatiere_ganzzahl_betrag(festgehalt)} €/Jahr"
 
     von = entry.get("gehaltsspanneVon")
     bis = entry.get("gehaltsspanneBis")
