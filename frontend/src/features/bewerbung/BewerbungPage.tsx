@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { slotSortierung } from "@/features/bewerbung/slots";
 import { alleGespeichert } from "@/features/bewerbung/speichern";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { usePersistedLayout } from "@/hooks/usePersistedLayout";
-import { useTask } from "@/hooks/useTask";
+import { useTaskErgebnis } from "@/hooks/useTaskErgebnis";
 import { useSetHeaderActions } from "@/lib/header-actions";
 import { api } from "@/lib/api";
 
@@ -45,20 +45,16 @@ export function BewerbungPage() {
     onError: (error) => toast.error(`Export fehlgeschlagen: ${error.message}`),
   });
 
-  const { data: exportTask } = useTask(exportTaskId);
-
-  useEffect(() => {
-    if (!exportTask) return;
-    if (exportTask.status === "fertig") {
-      toast.success(
-        typeof exportTask.ergebnis === "string" ? exportTask.ergebnis : "Export fertig.",
-      );
+  const exportTask = useTaskErgebnis(exportTaskId, {
+    onFertig: (task) => {
+      toast.success(typeof task.ergebnis === "string" ? task.ergebnis : "Export fertig.");
       setExportTaskId(null);
-    } else if (exportTask.status === "fehler") {
-      toast.error(`Export fehlgeschlagen: ${exportTask.meldung}`);
+    },
+    onFehler: (task) => {
+      toast.error(`Export fehlgeschlagen: ${task.meldung}`);
       setExportTaskId(null);
-    }
-  }, [exportTask]);
+    },
+  });
 
   const exportLaeuft = exportMutation.isPending || exportTask?.status === "läuft";
 

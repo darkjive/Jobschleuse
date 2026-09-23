@@ -1,20 +1,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MousePointerClick } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Markdown from "react-markdown";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useTask } from "@/hooks/useTask";
-import { formatHomeoffice } from "@/lib/format";
+import { useTaskErgebnis } from "@/hooks/useTaskErgebnis";
+import { formatAnbieter, formatHomeoffice } from "@/lib/format";
 import { api } from "@/lib/api";
 import type { JobOut } from "@/types/api";
-
-const ANBIETER_LABEL: Record<string, string> = {
-  zeitarbeit: "Zeitarbeit",
-  vermittler: "private Arbeitsvermittlung",
-};
 
 function Fakt({ label, wert }: { label: string; wert: string | number | null | undefined }) {
   if (wert === null || wert === undefined || wert === "") return null;
@@ -51,19 +46,17 @@ export function StellenDetail({ stelle, isLoading }: Props) {
     onError: (error) => toast.error(`Bewerbung konnte nicht gestartet werden: ${error.message}`),
   });
 
-  const { data: task } = useTask(erzeugen?.taskId ?? null);
-
-  useEffect(() => {
-    if (!task) return;
-    if (task.status === "fertig") {
+  const task = useTaskErgebnis(erzeugen?.taskId ?? null, {
+    onFertig: () => {
       toast.success("Bewerbung erzeugt.");
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       setErzeugen(null);
-    } else if (task.status === "fehler") {
+    },
+    onFehler: (task) => {
       toast.error(`Bewerbung fehlgeschlagen: ${task.meldung}`);
       setErzeugen(null);
-    }
-  }, [task, queryClient]);
+    },
+  });
 
   if (isLoading) {
     return (
@@ -114,11 +107,7 @@ export function StellenDetail({ stelle, isLoading }: Props) {
         <Fakt label="Quelle" wert={stelle.source_partner || stelle.external_host} />
         <Fakt
           label="Anbieter"
-          wert={
-            stelle.employer_kind
-              ? (ANBIETER_LABEL[stelle.employer_kind] ?? "Arbeitgeber direkt")
-              : null
-          }
+          wert={formatAnbieter(stelle.employer_kind)}
         />
         <Fakt
           label="Adresse"

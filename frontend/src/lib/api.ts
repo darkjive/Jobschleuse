@@ -19,22 +19,25 @@ export class ApiError extends Error {
   }
 }
 
+async function wirfBeiFehler(antwort: Response): Promise<void> {
+  if (antwort.ok) return;
+  const body = await antwort.json().catch(() => null);
+  const detail = body?.detail;
+  const meldung =
+    typeof detail === "string"
+      ? detail
+      : Array.isArray(detail)
+        ? detail.map((d) => d.msg).join(", ")
+        : antwort.statusText;
+  throw new ApiError(antwort.status, meldung);
+}
+
 async function anfrage<T>(pfad: string, init?: RequestInit): Promise<T> {
   const antwort = await fetch(pfad, {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
-  if (!antwort.ok) {
-    const body = await antwort.json().catch(() => null);
-    const detail = body?.detail;
-    const meldung =
-      typeof detail === "string"
-        ? detail
-        : Array.isArray(detail)
-          ? detail.map((d) => d.msg).join(", ")
-          : antwort.statusText;
-    throw new ApiError(antwort.status, meldung);
-  }
+  await wirfBeiFehler(antwort);
   return antwort.json() as Promise<T>;
 }
 
@@ -42,10 +45,7 @@ async function hochladen<T>(pfad: string, datei: File): Promise<T> {
   const formular = new FormData();
   formular.append("datei", datei);
   const antwort = await fetch(pfad, { method: "POST", body: formular });
-  if (!antwort.ok) {
-    const body = await antwort.json().catch(() => null);
-    throw new ApiError(antwort.status, body?.detail ?? antwort.statusText);
-  }
+  await wirfBeiFehler(antwort);
   return antwort.json() as Promise<T>;
 }
 

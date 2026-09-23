@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { slotLabel } from "@/features/bewerbung/slots";
 import { merkeSpeichern } from "@/features/bewerbung/speichern";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
-import { useTask } from "@/hooks/useTask";
+import { useTaskErgebnis } from "@/hooks/useTaskErgebnis";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { SlotOut } from "@/types/api";
@@ -68,21 +68,18 @@ export function SlotCard({ appId, name, daten, onGeaendert }: Props) {
     onError: (error) => toast.error(`Neu erzeugen fehlgeschlagen: ${error.message}`),
   });
 
-  const { data: task } = useTask(regenTaskId);
-
-  useEffect(() => {
-    if (!task) return;
-    if (task.status === "fertig") {
+  const task = useTaskErgebnis(regenTaskId, {
+    onFertig: () => {
       queryClient.invalidateQueries({ queryKey: ["applications", appId] });
       onGeaendert();
       setRegenTaskId(null);
       toast.success(`Block „${name}“ neu erzeugt.`);
-    } else if (task.status === "fehler") {
+    },
+    onFehler: (task) => {
       toast.error(`Neu erzeugen fehlgeschlagen: ${task.meldung}`);
       setRegenTaskId(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task, queryClient, appId, name]);
+    },
+  });
 
   const regeneriertLaeuft = regenMutation.isPending || task?.status === "läuft";
   // Fließtext-Blöcke brauchen Platz, Einzeiler (Firma, Datum …) nicht.

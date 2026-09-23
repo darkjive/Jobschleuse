@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useTask } from "@/hooks/useTask";
+import { useTaskErgebnis } from "@/hooks/useTaskErgebnis";
 import { api } from "@/lib/api";
 
 const schema = z.object({
@@ -62,19 +62,17 @@ export function SucheForm() {
     onError: (error) => toast.error(`Suche konnte nicht gestartet werden: ${error.message}`),
   });
 
-  const { data: task } = useTask(taskId);
-
-  useEffect(() => {
-    if (!task) return;
-    if (task.status === "fertig") {
+  const task = useTaskErgebnis(taskId, {
+    onFertig: (task) => {
       toast.success(typeof task.ergebnis === "string" ? task.ergebnis : "Suche abgeschlossen.");
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       setTaskId(null);
-    } else if (task.status === "fehler") {
+    },
+    onFehler: (task) => {
       toast.error(`Suche fehlgeschlagen: ${task.meldung}`);
       setTaskId(null);
-    }
-  }, [task, queryClient]);
+    },
+  });
 
   function onSubmit(values: FormValues) {
     mutation.mutate({

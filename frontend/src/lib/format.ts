@@ -20,6 +20,18 @@ export function employerWarnung(employerKind: string | null): string | null {
   return employerKind ? (EMPLOYER_LABEL[employerKind] ?? null) : null;
 }
 
+/** Vollständige Anbieter-Bezeichnung fürs Detail — anders als die kurze
+ * Warn-Badge oben (dort bleibt "arbeitgeber" ohne Badge, hier heißt es
+ * ausgeschrieben "Arbeitgeber direkt"). */
+const ANBIETER_LABEL: Record<string, string> = {
+  zeitarbeit: "Zeitarbeit",
+  vermittler: "private Arbeitsvermittlung",
+};
+
+export function formatAnbieter(employerKind: string | null): string | null {
+  return employerKind ? (ANBIETER_LABEL[employerKind] ?? "Arbeitgeber direkt") : null;
+}
+
 /** Rohwerte der Quellen (API-Konstanten, ASCII-Umschreibungen) → Anzeige. */
 const HOMEOFFICE_LABEL: Record<string, string> = {
   moeglich: "möglich",
