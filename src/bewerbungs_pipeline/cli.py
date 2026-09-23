@@ -259,9 +259,10 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     from .web.app import create_app
 
     cfg = load_config()
-    app = create_app(cfg)
+    loopback = args.host in ("127.0.0.1", "localhost", "::1")
+    app = create_app(cfg, nur_loopback=loopback)
     adresse = f"http://{args.host}:{args.port}"
-    if args.host not in ("127.0.0.1", "localhost", "::1") and not cfg.web_token:
+    if not loopback and not cfg.web_token:
         print(
             "[SECURITY] Achtung: --host ist nicht loopback, aber JOBS_WEB_TOKEN ist nicht "
             "gesetzt — die API ist im ganzen Netz ohne Auth erreichbar. Setze JOBS_WEB_TOKEN "

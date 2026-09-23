@@ -2,6 +2,7 @@ import base64
 import secrets
 import sqlite3
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
@@ -16,6 +17,14 @@ HIER = Path(__file__).parent
 # Verzeichnis wird committed — kein Node zur Laufzeit nötig (siehe Spec).
 FRONTEND_DIST = HIER.parent.parent.parent / "frontend" / "dist"
 
+_SICHERE_METHODEN = {"GET", "HEAD", "OPTIONS"}
+_LOOPBACK_NAMEN = {"127.0.0.1", "localhost", "::1"}
+
+
+def _hostname(host_header: str) -> str:
+    """'localhost:8765' → 'localhost', '[::1]:8765' → '::1'."""
+    return urlsplit(f"//{host_header}").hostname or ""
+
 
 def get_conn(request: Request) -> sqlite3.Connection:
     """Eine eigene Verbindung pro Anfrage — SQLite ist nicht thread-sicher.
@@ -29,9 +38,33 @@ def get_conn(request: Request) -> sqlite3.Connection:
         conn.close()
 
 
-def create_app(cfg: Config) -> FastAPI:
+def create_app(cfg: Config, nur_loopback: bool = False) -> FastAPI:
+    """`nur_loopback`: Server lauscht nur lokal — dann nimmt er auch nur
+    Anfragen an, die ihn unter einem lokalen Namen ansprechen."""
     app = FastAPI(title="Bewerbungs-App")
     app.state.cfg = cfg
+
+    @app.middleware("http")
+    async def fremde_seiten_abweisen(request: Request, call_next):
+        """Schützt vor Webseiten, die im selben Browser offen sind.
+
+        CSRF: ändernde Anfragen (POST/PUT …) einer fremden Seite tragen
+        deren `Origin` — der muss zum eigenen Host passen. Ohne `Origin`
+        (curl, CLI) geht die Anfrage durch; Browser setzen ihn bei fremden
+        Anfragen immer. DNS-Rebinding: die fremde Seite wird dabei zwar
+        „same origin“, ihr `Host`-Header nennt aber weiter ihren Namen.
+        """
+        host = request.headers.get("host", "")
+        if nur_loopback and _hostname(host) not in _LOOPBACK_NAMEN:
+            return JSONResponse({"error": "host not allowed"}, status_code=403)
+        origin = request.headers.get("origin")
+        if (
+            request.method not in _SICHERE_METHODEN
+            and origin is not None
+            and urlsplit(origin).netloc != host
+        ):
+            return JSONResponse({"error": "cross-origin request"}, status_code=403)
+        return await call_next(request)
 
     if cfg.web_token:
 
