@@ -77,12 +77,14 @@ def create_app(cfg: Config) -> FastAPI:
     # Modul zu — ein Import auf Modulebene wäre zirkulär.
     from .routes import api_applications as api_applications_routen
     from .routes import api_jobs as api_jobs_routen
+    from .routes import api_profile as api_profile_routen
     from .routes import api_tasks as api_tasks_routen
     from .routes import preview as preview_routen
 
     app.include_router(api_jobs_routen.router)
     app.include_router(api_tasks_routen.router)
     app.include_router(api_applications_routen.router)
+    app.include_router(api_profile_routen.router)
     app.include_router(preview_routen.router)
 
     if FRONTEND_DIST.is_dir():

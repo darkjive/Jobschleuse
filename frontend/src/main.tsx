@@ -6,6 +6,7 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BewerbungPage } from "@/features/bewerbung/BewerbungPage";
+import { ProfilPage } from "@/features/profil/ProfilPage";
 import { StellenPage } from "@/features/stellen/StellenPage";
 import { Layout } from "./App.tsx";
 import "./index.css";
@@ -24,6 +25,7 @@ createRoot(document.getElementById("root")!).render(
               <Route element={<Layout />}>
                 <Route index element={<StellenPage />} />
                 <Route path="bewerbung/:appId" element={<BewerbungPage />} />
+                <Route path="profil" element={<ProfilPage />} />
               </Route>
             </Routes>
           </BrowserRouter>

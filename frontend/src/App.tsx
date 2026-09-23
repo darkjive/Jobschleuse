@@ -1,5 +1,6 @@
-import { Outlet } from "react-router";
+import { Link, Outlet } from "react-router";
 import { CommandPalette } from "@/components/command-palette";
+import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HeaderActionsOutlet, HeaderActionsProvider } from "@/lib/header-actions";
 
@@ -16,7 +17,12 @@ function Header() {
             <p className="text-sm text-muted-foreground">Stellen rein, Bewerbungen raus.</p>
           </div>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" asChild>
+            <Link to="/profil">Profil</Link>
+          </Button>
+          <ThemeToggle />
+        </div>
       </div>
       <HeaderActionsOutlet className="flex flex-wrap items-center gap-2" />
     </header>

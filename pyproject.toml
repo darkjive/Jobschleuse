@@ -13,6 +13,7 @@ dependencies = [
     "uvicorn>=0.52.1",
     "playwright>=1.62.0",
     "python-jobspy>=1.1.82",
+    "python-multipart>=0.0.32",
 ]
 
 [project.scripts]

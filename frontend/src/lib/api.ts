@@ -37,6 +37,17 @@ async function anfrage<T>(pfad: string, init?: RequestInit): Promise<T> {
   return antwort.json() as Promise<T>;
 }
 
+async function hochladen<T>(pfad: string, datei: File): Promise<T> {
+  const formular = new FormData();
+  formular.append("datei", datei);
+  const antwort = await fetch(pfad, { method: "POST", body: formular });
+  if (!antwort.ok) {
+    const body = await antwort.json().catch(() => null);
+    throw new ApiError(antwort.status, body?.detail ?? antwort.statusText);
+  }
+  return antwort.json() as Promise<T>;
+}
+
 function query(params: object): string {
   const suche = new URLSearchParams();
   const eintraege = Object.entries(params) as [
@@ -94,5 +105,9 @@ export const api = {
       }),
     exportieren: (appId: number) =>
       anfrage<TaskRef>(`/api/applications/${appId}/export`, { method: "POST" }),
+  },
+  profile: {
+    assetHochladen: (art: "portrait" | "signature", datei: File) =>
+      hochladen<{ pfad: string }>(`/api/profile/${art}`, datei),
   },
 };
