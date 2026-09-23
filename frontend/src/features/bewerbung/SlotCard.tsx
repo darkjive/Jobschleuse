@@ -86,7 +86,8 @@ export function SlotCard({ appId, name, daten, onGeaendert }: Props) {
       </div>
       <Textarea
         value={value}
-        rows={4}
+        rows={8}
+        className="min-h-40 text-base md:text-base"
         onChange={(event) => {
           setValue(event.target.value);
           debouncedSave(event.target.value);
