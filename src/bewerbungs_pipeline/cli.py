@@ -126,6 +126,35 @@ def _cmd_list(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_show(args: argparse.Namespace) -> int:
+    from .applications import ensure_description
+
+    cfg = load_config()
+    conn = db.connect(cfg.db_path)
+    rows = []
+    for job_id in args.ids:
+        row = db.get_job(conn, job_id)
+        if row is None:
+            print(f"Job {job_id} nicht gefunden.", file=sys.stderr)
+            return 1
+        rows.append(row)
+    rows = [ensure_description(conn, row) for row in rows]
+    if args.json:
+        _json_out([_job_dict(row) for row in rows])
+        return 0
+    for i, row in enumerate(rows):
+        if i:
+            print("\n" + "─" * 60 + "\n")
+        score = "–" if row["score"] is None else row["score"]
+        print(f"#{row['id']} {row['title']}")
+        print(f"{row['company']} · {row['location']}")
+        print(row["url"])
+        print(f"Status: {row['status']}  Score: {score}")
+        print()
+        print(row["description_md"])
+    return 0
+
+
 def _set_status(job_id: int, status: str) -> int:
     cfg = load_config()
     conn = db.connect(cfg.db_path)
@@ -227,6 +256,11 @@ def main(argv: list[str] | None = None) -> int:
     p_list.add_argument("--limit", type=int, default=None, help="maximale Anzahl")
     _json_flag(p_list)
     p_list.set_defaults(func=_cmd_list)
+
+    p_show = sub.add_parser("show", help="Stellen mit Beschreibung anzeigen")
+    p_show.add_argument("ids", type=int, nargs="+", metavar="ID")
+    _json_flag(p_show)
+    p_show.set_defaults(func=_cmd_show)
 
     p_check = sub.add_parser("check", help="Bestand auf verschwundene Anzeigen prüfen")
     _json_flag(p_check)

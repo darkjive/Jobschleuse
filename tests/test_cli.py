@@ -283,3 +283,32 @@ def test_list_zeigt_score_spalte(env, capsys):
     out = capsys.readouterr().out
     assert "Score" in out
     assert "77" in out
+
+
+def test_show_json_in_reihenfolge_der_ids(env, capsys):
+    a, b = seed_many(env / "jobs.db", ["Erste", "Zweite"])
+    assert cli.main(["show", str(b), str(a), "--json"]) == 0
+    daten = json.loads(capsys.readouterr().out)
+    assert [j["id"] for j in daten] == [b, a]
+    assert "description_md" in daten[0]
+    assert "score_reason" in daten[0]
+    assert daten[0]["tags"] == []
+
+
+def test_show_unbekannte_id(env, capsys):
+    a = seed(env / "jobs.db")
+    assert cli.main(["show", str(a), "999", "--json"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "999" in captured.err
+
+
+def test_show_menschlich(env, capsys):
+    job_id = seed(env / "jobs.db")
+    conn = db.connect(env / "jobs.db")
+    db.update_description(conn, job_id, "Wir suchen Verstärkung.")
+    conn.close()
+    assert cli.main(["show", str(job_id)]) == 0
+    out = capsys.readouterr().out
+    assert "Mechatroniker (m/w/d)" in out
+    assert "Wir suchen Verstärkung." in out
