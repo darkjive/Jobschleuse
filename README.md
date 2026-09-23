@@ -24,7 +24,7 @@ Bewerbungsvorlage per LLM.
 
 | Bereich | Beschreibung |
 |---|---|
-| Suche | Bundesagentur-Schnittstelle (`fetch`) und Indeed via jobspy (`fetch-indeed`); Filter nach Umkreis, Alter (`--seit`), ohne Zeitarbeit, nur Arbeitsstellen (keine Ausbildung) |
+| Suche | Bundesagentur-Schnittstelle (`fetch`) und Indeed via jobspy (`fetch-indeed`); Filter nach Umkreis, Alter (`--since`), ohne Zeitarbeit, nur Arbeitsstellen (keine Ausbildung) |
 | Anreicherung | Herkunft (Direktarbeitgeber/Vermittler/Zeitarbeit), Gehalt, Homeoffice, Vertrag, Arbeitszeit, Adresse, Entfernung — parallel nachgeladen, ohne die Suche zu verlangsamen |
 | Bestandspflege | erkennt bei jeder Suche und per `jobs check`, welche gespeicherten Anzeigen bei der Quelle verschwunden sind; markiert statt zu löschen |
 | Verwaltung | Status je Stelle (`new` / `selected` / `rejected`) über CLI oder Weboberfläche |
@@ -37,8 +37,8 @@ Bewerbungsvorlage per LLM.
     cp .env.example .env                   # LLM_BASE_URL, LLM_API_KEY, LLM_MODEL eintragen
     cp profile.yaml.example profile.yaml   # persönliche Daten eintragen
 
-    uv run jobs fetch --was "Mechatroniker" --wo "Frankfurt" --umkreis 50 \
-        --seit 14 --ohne-zeitarbeit --nur-arbeit
+    uv run jobs fetch --what "Mechatroniker" --where "Frankfurt" --radius 50 \
+        --since 14 --no-temp-agency --jobs-only
     uv run jobs check             # Bestand auf verschwundene Anzeigen prüfen
     uv run jobs list --status new
     uv run jobs pick 3

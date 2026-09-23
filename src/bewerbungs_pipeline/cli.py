@@ -1,4 +1,5 @@
 import argparse
+import json
 import sys
 
 from . import db
@@ -6,20 +7,31 @@ from .config import load_config
 from .sources import arbeitsagentur
 
 
+def _json_out(daten) -> None:
+    print(json.dumps(daten, ensure_ascii=False))
+
+
+def _json_flag(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--json", action="store_true", help="Ausgabe als JSON")
+
+
 def _cmd_fetch(args: argparse.Namespace) -> int:
     cfg = load_config()
     conn = db.connect(cfg.db_path)
     items = arbeitsagentur.fetch_jobs(
-        was=args.was,
-        wo=args.wo,
-        umkreis=args.umkreis,
-        veroeffentlicht_seit=args.seit,
-        ohne_zeitarbeit=args.ohne_zeitarbeit,
-        nur_arbeit=args.nur_arbeit,
+        was=args.what,
+        wo=args.where,
+        umkreis=args.radius,
+        veroeffentlicht_seit=args.since,
+        ohne_zeitarbeit=args.no_temp_agency,
+        nur_arbeit=args.jobs_only,
     )
     inserted = sum(1 for item in items if db.insert_job(conn, item))
     weg = db.mark_gone(conn, arbeitsagentur.check_alive(db.offene_referenzen(conn)))
-    print(f"{len(items)} Stellen geholt, {inserted} neu, {weg} nicht mehr verfügbar.")
+    if args.json:
+        _json_out({"fetched": len(items), "new": inserted, "gone": weg})
+    else:
+        print(f"{len(items)} Stellen geholt, {inserted} neu, {weg} nicht mehr verfügbar.")
     return 0
 
 
@@ -29,14 +41,17 @@ def _cmd_fetch_indeed(args: argparse.Namespace) -> int:
     cfg = load_config()
     conn = db.connect(cfg.db_path)
     items = indeed.fetch_jobs(
-        was=args.was,
-        wo=args.wo,
-        umkreis=args.umkreis,
-        seit_stunden=args.seit * 24 if args.seit is not None else None,
-        ergebnisse=args.ergebnisse,
+        was=args.what,
+        wo=args.where,
+        umkreis=args.radius,
+        seit_stunden=args.since * 24 if args.since is not None else None,
+        ergebnisse=args.limit,
     )
     inserted = sum(1 for item in items if db.insert_job(conn, item))
-    print(f"{len(items)} Stellen geholt, {inserted} neu.")
+    if args.json:
+        _json_out({"fetched": len(items), "new": inserted})
+    else:
+        print(f"{len(items)} Stellen geholt, {inserted} neu.")
     return 0
 
 
@@ -44,9 +59,13 @@ def _cmd_check(args: argparse.Namespace) -> int:
     cfg = load_config()
     conn = db.connect(cfg.db_path)
     referenzen = db.offene_referenzen(conn)
-    print(f"{len(referenzen)} Stellen werden geprüft …")
+    if not args.json:
+        print(f"{len(referenzen)} Stellen werden geprüft …")
     weg = db.mark_gone(conn, arbeitsagentur.check_alive(referenzen))
-    print(f"{weg} Stellen sind bei der Quelle nicht mehr vorhanden.")
+    if args.json:
+        _json_out({"checked": len(referenzen), "gone": weg})
+    else:
+        print(f"{weg} Stellen sind bei der Quelle nicht mehr vorhanden.")
     return 0
 
 
@@ -122,34 +141,36 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_fetch = sub.add_parser("fetch", help="Stellen von der Arbeitsagentur holen")
-    p_fetch.add_argument("--was", required=True, help="Suchbegriff, z. B. Beruf")
-    p_fetch.add_argument("--wo", required=True, help="Ort")
-    p_fetch.add_argument("--umkreis", type=int, default=25, help="Umkreis in km")
+    p_fetch.add_argument("--what", required=True, help="Suchbegriff, z. B. Beruf")
+    p_fetch.add_argument("--where", required=True, help="Ort")
+    p_fetch.add_argument("--radius", type=int, default=25, help="Umkreis in km")
     p_fetch.add_argument(
-        "--seit", type=int, default=None, help="nur Anzeigen der letzten N Tage"
+        "--since", type=int, default=None, help="nur Anzeigen der letzten N Tage"
     )
     p_fetch.add_argument(
-        "--ohne-zeitarbeit",
+        "--no-temp-agency",
         action="store_true",
         help="Arbeitnehmerüberlassung ausblenden",
     )
     p_fetch.add_argument(
-        "--nur-arbeit",
+        "--jobs-only",
         action="store_true",
         help="nur Arbeitsstellen, keine Ausbildungen",
     )
+    _json_flag(p_fetch)
     p_fetch.set_defaults(func=_cmd_fetch)
 
     p_fetch_indeed = sub.add_parser("fetch-indeed", help="Stellen von Indeed holen")
-    p_fetch_indeed.add_argument("--was", required=True, help="Suchbegriff, z. B. Beruf")
-    p_fetch_indeed.add_argument("--wo", required=True, help="Ort")
-    p_fetch_indeed.add_argument("--umkreis", type=int, default=25, help="Umkreis in km")
+    p_fetch_indeed.add_argument("--what", required=True, help="Suchbegriff, z. B. Beruf")
+    p_fetch_indeed.add_argument("--where", required=True, help="Ort")
+    p_fetch_indeed.add_argument("--radius", type=int, default=25, help="Umkreis in km")
     p_fetch_indeed.add_argument(
-        "--seit", type=int, default=None, help="nur Anzeigen der letzten N Tage"
+        "--since", type=int, default=None, help="nur Anzeigen der letzten N Tage"
     )
     p_fetch_indeed.add_argument(
-        "--ergebnisse", type=int, default=25, help="maximale Trefferzahl"
+        "--limit", type=int, default=25, help="maximale Trefferzahl"
     )
+    _json_flag(p_fetch_indeed)
     p_fetch_indeed.set_defaults(func=_cmd_fetch_indeed)
 
     p_list = sub.add_parser("list", help="Stellen anzeigen")
@@ -157,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
     p_list.set_defaults(func=_cmd_list)
 
     p_check = sub.add_parser("check", help="Bestand auf verschwundene Anzeigen prüfen")
+    _json_flag(p_check)
     p_check.set_defaults(func=_cmd_check)
 
     p_pick = sub.add_parser("pick", help="Stelle auswählen")

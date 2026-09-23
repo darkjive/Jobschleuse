@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -43,7 +44,7 @@ def test_fetch_inserts_jobs(env, monkeypatch, capsys):
     ]
     monkeypatch.setattr(cli.arbeitsagentur, "fetch_jobs", lambda **kw: fake_items)
     monkeypatch.setattr(cli.arbeitsagentur, "check_alive", lambda refnrs: set())
-    rc = cli.main(["fetch", "--was", "Elektroniker", "--wo", "Frankfurt"])
+    rc = cli.main(["fetch", "--what", "Elektroniker", "--where", "Frankfurt"])
     assert rc == 0
     out = capsys.readouterr().out
     assert "1 neu" in out
@@ -106,16 +107,77 @@ def test_fetch_reicht_neue_optionen_durch(env, monkeypatch, capsys):
     cli.main(
         [
             "fetch",
-            "--was",
+            "--what",
             "Frontend",
-            "--wo",
+            "--where",
             "Darmstadt",
-            "--seit",
+            "--radius",
+            "30",
+            "--since",
             "7",
-            "--ohne-zeitarbeit",
-            "--nur-arbeit",
+            "--no-temp-agency",
+            "--jobs-only",
         ]
     )
+    assert gesehen["umkreis"] == 30
     assert gesehen["veroeffentlicht_seit"] == 7
     assert gesehen["ohne_zeitarbeit"] is True
     assert gesehen["nur_arbeit"] is True
+
+
+def test_fetch_json(env, monkeypatch, capsys):
+    fake_items = [
+        JobItem(
+            title="Elektroniker (m/w/d)",
+            company="Beispiel AG",
+            location="Frankfurt am Main",
+            url="https://example.org/job/1",
+            source="arbeitsagentur",
+            scraped_at=datetime.now(UTC),
+        )
+    ]
+    monkeypatch.setattr(cli.arbeitsagentur, "fetch_jobs", lambda **kw: fake_items)
+    monkeypatch.setattr(cli.arbeitsagentur, "check_alive", lambda refnrs: set())
+    rc = cli.main(["fetch", "--what", "X", "--where", "Y", "--json"])
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out) == {"fetched": 1, "new": 1, "gone": 0}
+
+
+def test_fetch_alte_deutsche_optionen_sind_weg(env):
+    with pytest.raises(SystemExit) as fehler:
+        cli.main(["fetch", "--was", "X", "--wo", "Y"])
+    assert fehler.value.code == 2
+
+
+def test_fetch_indeed_optionen_und_json(env, monkeypatch, capsys):
+    from bewerbungs_pipeline.sources import indeed
+
+    gesehen = {}
+
+    def falsches_holen(**kw):
+        gesehen.update(kw)
+        return []
+
+    monkeypatch.setattr(indeed, "fetch_jobs", falsches_holen)
+    rc = cli.main(
+        ["fetch-indeed", "--what", "Dev", "--where", "Darmstadt", "--since", "2",
+         "--limit", "10", "--json"]
+    )
+    assert rc == 0
+    assert gesehen["ergebnisse"] == 10
+    assert gesehen["seit_stunden"] == 48
+    assert json.loads(capsys.readouterr().out) == {"fetched": 0, "new": 0}
+
+
+def test_check_json(env, monkeypatch, capsys):
+    conn = db.connect(env / "jobs.db")
+    conn.execute(
+        "INSERT INTO jobs (url, dedupe_hash, source_ref, title, company, location,"
+        " source, scraped_at) VALUES ('http://a', 'h1', 'ref-weg', 'Titel', 'Firma',"
+        " 'Ort', 'arbeitsagentur', '2026-07-01T00:00:00+00:00')"
+    )
+    conn.commit()
+    conn.close()
+    monkeypatch.setattr(cli.arbeitsagentur, "check_alive", lambda refnrs: {"ref-weg"})
+    assert cli.main(["check", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"checked": 1, "gone": 1}
