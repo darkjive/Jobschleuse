@@ -113,6 +113,22 @@ CREATE TABLE IF NOT EXISTS application_slots (
 """
 
 
+# Karriereseiten von Firmen, deren Stellenfeed direkt abgefragt wird
+# (sources/karriereseiten.py). `fehler` hält den letzten Abruffehler fest.
+SCHEMA_KARRIERESEITEN = """
+CREATE TABLE IF NOT EXISTS karriereseiten (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    system     TEXT NOT NULL,
+    kennung    TEXT NOT NULL,
+    company    TEXT NOT NULL,
+    added_at   TEXT NOT NULL,
+    fetched_at TEXT,
+    fehler     TEXT,
+    UNIQUE(system, kennung)
+)
+"""
+
+
 def _spalten_nachruesten(conn: sqlite3.Connection, spalten) -> None:
     # Spaltenweise statt Tabellenneubau: die Bestandsdatenbank haengt an
     # Bewerbungen, die einen Fremdschluessel auf jobs.id halten.
@@ -150,6 +166,7 @@ def connect(db_path: Path) -> sqlite3.Connection:
     conn.execute(SCHEMA)
     conn.execute(SCHEMA_APPLICATIONS)
     conn.execute(SCHEMA_APPLICATION_SLOTS)
+    conn.execute(SCHEMA_KARRIERESEITEN)
     _migrate(conn)
     return conn
 
@@ -351,6 +368,96 @@ def mark_gone(conn: sqlite3.Connection, refnrs: set[str]) -> int:
     )
     conn.commit()
     return cur.rowcount
+
+
+def mark_gone_ausser(
+    conn: sqlite3.Connection, praefix: str, vorhandene: set[str]
+) -> int:
+    """Markiert Stellen einer Quelle als verschwunden, die nicht mehr im Feed sind.
+
+    Betrifft nur Stellen, deren `source_ref` mit `praefix` beginnt — also
+    genau eine Karriereseite. Nur nach einem erfolgreichen Abruf aufrufen:
+    ein gescheiterter Abruf ist kein leerer Feed.
+    """
+    zeilen = conn.execute(
+        "SELECT source_ref FROM jobs WHERE gone_at IS NULL"
+        " AND substr(source_ref, 1, ?) = ?",
+        (len(praefix), praefix),
+    ).fetchall()
+    weg = {z["source_ref"] for z in zeilen} - vorhandene
+    return mark_gone(conn, weg)
+
+
+def ergaenze_leere_felder(conn: sqlite3.Connection, job_id: int, felder: dict) -> None:
+    """Füllt Angaben nach, die bisher fehlen; Vorhandenes bleibt unangetastet.
+
+    Die Beschreibung zählt als fehlend, wenn die neue länger ist — die
+    Kurzfassung der Quelle soll vom Volltext abgelöst werden.
+    """
+    zeile = get_job(conn, job_id)
+    if zeile is None:
+        return
+    aenderungen: dict[str, str] = {}
+    for spalte in ("salary", "worktime", "homeoffice", "company_website", "posted_at"):
+        wert = felder.get(spalte)
+        if wert and not zeile[spalte]:
+            aenderungen[spalte] = wert.isoformat() if isinstance(wert, date) else wert
+    text = felder.get("description_md") or ""
+    if len(text) > len(zeile["description_md"]):
+        aenderungen["description_md"] = text
+    if not aenderungen:
+        return
+    # Spaltennamen stammen aus der festen Liste oben, nicht aus der Eingabe.
+    zuweisung = ", ".join(f"{spalte} = ?" for spalte in aenderungen)
+    conn.execute(
+        f"UPDATE jobs SET {zuweisung} WHERE id = ?", (*aenderungen.values(), job_id)
+    )
+    conn.commit()
+
+
+def karriereseite_merken(
+    conn: sqlite3.Connection, system: str, kennung: str, company: str
+) -> bool:
+    """Trägt eine Karriereseite ein. ``False``, wenn sie schon bekannt ist."""
+    cur = conn.execute(
+        "INSERT OR IGNORE INTO karriereseiten (system, kennung, company, added_at)"
+        " VALUES (?, ?, ?, ?)",
+        (system, kennung, company, datetime.now(UTC).isoformat()),
+    )
+    conn.commit()
+    return cur.rowcount == 1
+
+
+def karriereseiten(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return conn.execute(
+        "SELECT * FROM karriereseiten ORDER BY company COLLATE NOCASE"
+    ).fetchall()
+
+
+def karriereseite_abgerufen(
+    conn: sqlite3.Connection, seiten_id: int, fehler: str | None = None
+) -> None:
+    """Hält den letzten Abruf fest; bei Erfolg wird ein alter Fehler gelöscht."""
+    if fehler is None:
+        conn.execute(
+            "UPDATE karriereseiten SET fetched_at = ?, fehler = NULL WHERE id = ?",
+            (datetime.now(UTC).isoformat(), seiten_id),
+        )
+    else:
+        conn.execute(
+            "UPDATE karriereseiten SET fehler = ? WHERE id = ?", (fehler, seiten_id)
+        )
+    conn.commit()
+
+
+def link_kandidaten(conn: sqlite3.Connection) -> list[tuple[str, str]]:
+    """(URL, Firma) aller gespeicherten Anzeigen- und Firmenlinks."""
+    zeilen = conn.execute(
+        "SELECT url AS link, company FROM jobs"
+        " UNION SELECT company_website, company FROM jobs"
+        " WHERE company_website IS NOT NULL"
+    ).fetchall()
+    return [(z["link"], z["company"]) for z in zeilen]
 
 
 def row_to_item(row: sqlite3.Row) -> JobItem:

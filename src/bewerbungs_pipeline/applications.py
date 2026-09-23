@@ -12,6 +12,7 @@ from . import llm, pdf
 from .config import Config
 from .llm import GenerationError, generate_single_slot, generate_slot_texts
 from .slots import extract_slots, fill_slots
+from .sources import jsonld, normalisierung
 from .sources.arbeitsagentur import fetch_details
 
 MIN_DESCRIPTION_CHARS = 200
@@ -43,7 +44,33 @@ def dateiname_teil(text: str) -> str:
 
 
 def ensure_description(conn, row) -> sqlite3.Row:
-    """Holt bei zu kurzer Beschreibung den Volltext von der Quelle nach."""
+    """Holt bei zu kurzer Beschreibung den Volltext nach.
+
+    Erst bei der Arbeitsagentur, dann — falls die Anzeige auf die Seite
+    der Firma verweist — aus deren strukturierten Stellendaten.
+    """
+    row = _beschreibung_arbeitsagentur(conn, row)
+    if len(row["description_md"]) < MIN_DESCRIPTION_CHARS and row["gone_at"] is None:
+        row = _beschreibung_firmenseite(conn, row)
+    return row
+
+
+def _beschreibung_firmenseite(conn, row) -> sqlite3.Row:
+    host = normalisierung.host(row["url"]) or ""
+    if host.endswith("arbeitsagentur.de"):
+        return row  # keine Firmenseite, dort gibt es nichts Weiteres
+    try:
+        felder = jsonld.abrufen(row["url"])
+    except Exception as exc:  # Netzfehler: mit Kurzbeschreibung weiterarbeiten
+        print(f"Warnung: Firmenseite nicht abrufbar ({exc}).", file=sys.stderr)
+        return row
+    if not felder:
+        return row
+    dbmod.ergaenze_leere_felder(conn, row["id"], felder)
+    return dbmod.get_job(conn, row["id"])
+
+
+def _beschreibung_arbeitsagentur(conn, row) -> sqlite3.Row:
     too_short = len(row["description_md"]) < MIN_DESCRIPTION_CHARS
     if too_short and row["source"] == "arbeitsagentur" and row["source_ref"]:
         try:

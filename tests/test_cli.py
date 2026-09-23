@@ -416,3 +416,54 @@ def test_reject_mit_unbekannter_id_aendert_nichts(env, capsys):
     conn = db.connect(env / "jobs.db")
     assert db.get_job(conn, a)["status"] == "new"
     conn.close()
+
+
+def test_career_add_und_list(env, capsys):
+    assert cli.main(["career-add", "https://jobs.lever.co/acme/123", "--company", "Acme", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"system": "lever", "id": "acme"}
+    assert cli.main(["career-list", "--json"]) == 0
+    (seite,) = json.loads(capsys.readouterr().out)
+    assert (seite["company"], seite["system"], seite["fehler"]) == ("Acme", "lever", None)
+
+
+def test_career_add_unbekanntes_system(env, capsys):
+    assert cli.main(["career-add", "https://example.org/karriere"]) == 1
+    assert "Unbekanntes System" in capsys.readouterr().err
+
+
+def test_fetch_career_entdeckt_und_holt(env, monkeypatch, capsys):
+    from bewerbungs_pipeline.sources import karriereseiten
+
+    conn = db.connect(env / "jobs.db")
+    db.insert_job(
+        conn,
+        JobItem(
+            title="Fahrer",
+            company="Acme",
+            location="Kassel",
+            url="https://jobs.lever.co/acme/1",
+            source="arbeitsagentur",
+            scraped_at=datetime.now(UTC),
+        ),
+    )
+    conn.close()
+
+    def feed(seite, firma, client=None):
+        return [
+            JobItem(
+                title=titel,
+                company=firma,
+                location=ort,
+                url=f"https://jobs.lever.co/acme/{nr}",
+                source="lever",
+                source_ref=f"{seite.praefix}{nr}",
+                scraped_at=datetime.now(UTC),
+            )
+            for nr, (titel, ort) in enumerate([("Lagerist", "Kassel"), ("Lagerist", "Bonn")])
+        ]
+
+    monkeypatch.setattr(karriereseiten, "fetch_seite", feed)
+    assert cli.main(["fetch-career", "--where", "Kassel", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "discovered": 1, "fetched": 1, "new": 1, "gone": 0, "errors": 0,
+    }

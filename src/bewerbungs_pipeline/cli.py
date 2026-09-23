@@ -4,7 +4,13 @@ import sys
 
 from . import db
 from .config import load_config
-from .pipeline import fetch_arbeitsagentur, fetch_indeed
+from .pipeline import (
+    fetch_arbeitsagentur,
+    fetch_indeed,
+    fetch_karriereseiten,
+    karriereseite_hinzufuegen,
+    karriereseiten_entdecken,
+)
 from .sources import arbeitsagentur  # noqa: F401  (Tests patchen darüber)
 
 
@@ -50,6 +56,71 @@ def _cmd_fetch_indeed(args: argparse.Namespace) -> int:
         _json_out({"fetched": fetched, "new": inserted})
     else:
         print(f"{fetched} Stellen geholt, {inserted} neu.")
+    return 0
+
+
+def _cmd_fetch_career(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    conn = db.connect(cfg.db_path)
+    entdeckt = karriereseiten_entdecken(conn)
+    ergebnis = fetch_karriereseiten(conn, was=args.what, wo=args.where)
+    if args.json:
+        _json_out({
+            "discovered": entdeckt,
+            "fetched": ergebnis.geholt,
+            "new": ergebnis.neu,
+            "gone": ergebnis.weg,
+            "errors": ergebnis.fehler,
+        })
+    else:
+        print(
+            f"{ergebnis.geholt} passende Stellen geholt, {ergebnis.neu} neu, "
+            f"{ergebnis.weg} nicht mehr verfügbar."
+        )
+        if entdeckt:
+            print(f"{entdeckt} Karriereseiten neu entdeckt.")
+        if ergebnis.fehler:
+            print(
+                f"{ergebnis.fehler} Karriereseiten nicht abrufbar — Details: jobs career-list",
+                file=sys.stderr,
+            )
+    return 0
+
+
+def _cmd_career_add(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    conn = db.connect(cfg.db_path)
+    seite = karriereseite_hinzufuegen(conn, args.url, args.company)
+    if seite is None:
+        print(
+            "Unbekanntes System. Unterstützt: "
+            "Personio, Greenhouse, Lever, Recruitee, SmartRecruiters.",
+            file=sys.stderr,
+        )
+        return 1
+    if args.json:
+        _json_out({"system": seite.system, "id": seite.kennung})
+    else:
+        print(f"Eingetragen: {seite.system} / {seite.kennung}")
+    return 0
+
+
+def _cmd_career_list(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    conn = db.connect(cfg.db_path)
+    karriereseiten_entdecken(conn)
+    zeilen = db.karriereseiten(conn)
+    if args.json:
+        _json_out([dict(zeile) for zeile in zeilen])
+        return 0
+    if not zeilen:
+        print("Noch keine Karriereseiten bekannt.")
+        return 0
+    for zeile in zeilen:
+        stand = f"Fehler: {zeile['fehler']}" if zeile["fehler"] else (
+            f"zuletzt {zeile['fetched_at'][:16]}" if zeile["fetched_at"] else "noch nie abgerufen"
+        )
+        print(f"{zeile['company'][:35]:<35} {zeile['system']:<16} {zeile['kennung']:<30} {stand}")
     return 0
 
 
@@ -308,6 +379,30 @@ def main(argv: list[str] | None = None) -> int:
     )
     _json_flag(p_fetch_indeed)
     p_fetch_indeed.set_defaults(func=_cmd_fetch_indeed)
+
+    p_fetch_career = sub.add_parser(
+        "fetch-career", help="Stellen aus den Feeds bekannter Karriereseiten holen"
+    )
+    p_fetch_career.add_argument(
+        "--what", default=None, help="nur Stellen, die alle diese Wörter enthalten"
+    )
+    p_fetch_career.add_argument(
+        "--where", default=None, help="nur Stellen in diesem Ort (oder mit Homeoffice)"
+    )
+    _json_flag(p_fetch_career)
+    p_fetch_career.set_defaults(func=_cmd_fetch_career)
+
+    p_career_add = sub.add_parser(
+        "career-add", help="Karriereseite einer Firma von Hand eintragen"
+    )
+    p_career_add.add_argument("url", help="Link zur Karriereseite oder einer Anzeige")
+    p_career_add.add_argument("--company", default=None, help="Firmenname")
+    _json_flag(p_career_add)
+    p_career_add.set_defaults(func=_cmd_career_add)
+
+    p_career_list = sub.add_parser("career-list", help="bekannte Karriereseiten anzeigen")
+    _json_flag(p_career_list)
+    p_career_list.set_defaults(func=_cmd_career_list)
 
     p_list = sub.add_parser("list", help="Stellen anzeigen")
     p_list.add_argument("--status", choices=sorted(db.STATUSES), default=None)
