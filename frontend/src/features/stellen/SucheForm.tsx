@@ -7,6 +7,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import {
   Select,
   SelectContent,
@@ -89,95 +90,99 @@ export function SucheForm() {
   const laeuft = mutation.isPending || task?.status === "läuft";
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-wrap items-end gap-2">
-      <Controller
-        control={control}
-        name="quelle"
-        render={({ field }) => (
-          <Select value={field.value} onValueChange={field.onChange}>
-            <SelectTrigger className="w-40" aria-label="Quelle">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="arbeitsagentur">Arbeitsagentur</SelectItem>
-              <SelectItem value="indeed">Indeed</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-      />
-      <div className="flex flex-col gap-1">
-        <Input
-          {...register("was")}
-          placeholder="Was, z. B. Frontend Entwickler"
-          aria-label="Wonach suchen"
-          className="w-56"
+    <form onSubmit={handleSubmit(onSubmit)} className="flex w-full flex-col gap-2">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start">
+        <Controller
+          control={control}
+          name="quelle"
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger className="w-full md:w-40" aria-label="Quelle">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="arbeitsagentur">Arbeitsagentur</SelectItem>
+                <SelectItem value="indeed">Indeed</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         />
-        {errors.was && <p className="text-xs text-destructive">{errors.was.message}</p>}
+        <div className="flex flex-col gap-1 md:flex-1">
+          <Input
+            {...register("was")}
+            placeholder="Was, z. B. Frontend Entwickler"
+            aria-label="Wonach suchen"
+          />
+          {errors.was && <p className="text-xs text-destructive">{errors.was.message}</p>}
+        </div>
+        <div className="flex flex-col gap-1 md:w-48">
+          <Input
+            {...register("wo")}
+            placeholder="Wo, z. B. Darmstadt"
+            aria-label="Wo suchen"
+          />
+          {errors.wo && <p className="text-xs text-destructive">{errors.wo.message}</p>}
+        </div>
+        <InputGroup className="md:w-24">
+          <InputGroupInput
+            {...register("umkreis", { valueAsNumber: true })}
+            type="number"
+            min={0}
+            max={200}
+            aria-label="Umkreis in km"
+          />
+          <InputGroupAddon align="inline-end">km</InputGroupAddon>
+        </InputGroup>
       </div>
-      <div className="flex flex-col gap-1">
-        <Input
-          {...register("wo")}
-          placeholder="Wo, z. B. Darmstadt"
-          aria-label="Wo suchen"
-          className="w-44"
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Controller
+          control={control}
+          name="seit"
+          render={({ field }) => (
+            <Select
+              value={field.value || "egal"}
+              onValueChange={(wert) => field.onChange(wert === "egal" ? "" : wert)}
+            >
+              <SelectTrigger className="w-40" aria-label="Veröffentlicht seit">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="egal">Alter egal</SelectItem>
+                <SelectItem value="7">letzte 7 Tage</SelectItem>
+                <SelectItem value="14">letzte 14 Tage</SelectItem>
+                <SelectItem value="30">letzte 30 Tage</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         />
-        {errors.wo && <p className="text-xs text-destructive">{errors.wo.message}</p>}
-      </div>
-      <Input
-        {...register("umkreis", { valueAsNumber: true })}
-        type="number"
-        min={0}
-        max={200}
-        aria-label="Umkreis in km"
-        className="w-24"
-      />
-      <Controller
-        control={control}
-        name="seit"
-        render={({ field }) => (
-          <Select
-            value={field.value || "egal"}
-            onValueChange={(wert) => field.onChange(wert === "egal" ? "" : wert)}
-          >
-            <SelectTrigger className="w-44" aria-label="Veröffentlicht seit">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="egal">Alter egal</SelectItem>
-              <SelectItem value="7">letzte 7 Tage</SelectItem>
-              <SelectItem value="14">letzte 14 Tage</SelectItem>
-              <SelectItem value="30">letzte 30 Tage</SelectItem>
-            </SelectContent>
-          </Select>
+        {quelle === "arbeitsagentur" && (
+          <>
+            <label className="flex items-center gap-2 text-sm">
+              <Controller
+                control={control}
+                name="ohne_zeitarbeit"
+                render={({ field }) => (
+                  <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                )}
+              />
+              ohne Zeitarbeit
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Controller
+                control={control}
+                name="nur_arbeit"
+                render={({ field }) => (
+                  <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                )}
+              />
+              keine Ausbildung
+            </label>
+          </>
         )}
-      />
-      {quelle === "arbeitsagentur" && (
-        <>
-          <label className="flex items-center gap-2 text-sm">
-            <Controller
-              control={control}
-              name="ohne_zeitarbeit"
-              render={({ field }) => (
-                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-              )}
-            />
-            ohne Zeitarbeit
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <Controller
-              control={control}
-              name="nur_arbeit"
-              render={({ field }) => (
-                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-              )}
-            />
-            keine Ausbildung
-          </label>
-        </>
-      )}
-      <Button type="submit" disabled={laeuft}>
-        {laeuft ? "Suche läuft…" : "Stellen suchen"}
-      </Button>
+        <Button type="submit" disabled={laeuft} className="w-full md:ml-auto md:w-auto">
+          {laeuft ? "Suche läuft…" : "Stellen suchen"}
+        </Button>
+      </div>
     </form>
   );
 }

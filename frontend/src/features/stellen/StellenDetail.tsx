@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import Markdown from "react-markdown";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -158,9 +159,10 @@ export function StellenDetail({ stelle, isLoading }: Props) {
         )}
       </div>
 
-      <pre className="max-h-96 overflow-y-auto rounded-md border border-border bg-muted p-3 text-sm whitespace-pre-wrap">
-        {stelle.description_md}
-      </pre>
+      {/* Kein eigenes Scrollen — der umgebende Detailbereich scrollt bereits. */}
+      <div className="border-t border-border pt-4 text-sm leading-relaxed wrap-anywhere [&_a]:text-primary [&_a]:underline [&_h1]:mt-4 [&_h1]:font-semibold [&_h2]:mt-4 [&_h2]:font-semibold [&_h3]:mt-3 [&_h3]:font-semibold [&_li]:mb-1 [&_ol]:mb-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_strong]:font-semibold [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-5">
+        <Markdown>{stelle.description_md}</Markdown>
+      </div>
     </article>
   );
 }

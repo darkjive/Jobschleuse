@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { SlidersHorizontal, Search } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { FilterSidebar, type FilterState } from "@/features/stellen/FilterSidebar";
 import { StellenDetail } from "@/features/stellen/StellenDetail";
@@ -15,11 +17,15 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { usePersistedLayout } from "@/hooks/usePersistedLayout";
 import { useSetHeaderActions } from "@/lib/header-actions";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { JobOut, SortOrder, SortSpalte } from "@/types/api";
 
 export function StellenPage() {
-  const headerActions = useSetHeaderActions(<SucheForm />);
   const [params, setParams] = useSearchParams();
+  // Mobil: Suche und Filter eingeklappt, damit die Liste sofort sichtbar ist.
+  // Nur per CSS versteckt, damit eine laufende Suche (Task-Polling) weiterläuft.
+  const [sucheOffen, setSucheOffen] = useState(false);
+  const [filterOffen, setFilterOffen] = useState(false);
 
   const filter: FilterState = {
     status: params.get("status") ?? "new",
@@ -30,6 +36,35 @@ export function StellenPage() {
   const sort = (params.get("sort") as SortSpalte) || "id";
   const order = (params.get("order") as SortOrder) || "desc";
   const stelleId = params.get("stelle") ? Number(params.get("stelle")) : null;
+  const aktiveFilter = [filter.status !== "new", filter.q, filter.ort, filter.verschwunden].filter(
+    Boolean,
+  ).length;
+
+  const headerActions = useSetHeaderActions(
+    <>
+      <div className="flex w-full gap-2 md:hidden">
+        <Button
+          variant={sucheOffen ? "secondary" : "outline"}
+          className="flex-1"
+          aria-expanded={sucheOffen}
+          onClick={() => setSucheOffen((offen) => !offen)}
+        >
+          <Search /> Neue Suche
+        </Button>
+        <Button
+          variant={filterOffen ? "secondary" : "outline"}
+          className="flex-1"
+          aria-expanded={filterOffen}
+          onClick={() => setFilterOffen((offen) => !offen)}
+        >
+          <SlidersHorizontal /> Filter{aktiveFilter > 0 && ` (${aktiveFilter})`}
+        </Button>
+      </div>
+      <div className={cn("w-full md:block", !sucheOffen && "hidden")}>
+        <SucheForm />
+      </div>
+    </>,
+  );
 
   function patchParams(patch: Record<string, string | null>) {
     setParams(
@@ -79,17 +114,19 @@ export function StellenPage() {
   return (
     <div className="flex h-full flex-col gap-4 md:flex-row">
       {headerActions}
-      <FilterSidebar
-        value={filter}
-        onChange={(next) =>
-          patchParams({
-            status: next.status,
-            q: next.q,
-            ort: next.ort,
-            verschwunden: next.verschwunden ? "1" : null,
-          })
-        }
-      />
+      <div className={cn("shrink-0 md:block", !filterOffen && "hidden")}>
+        <FilterSidebar
+          value={filter}
+          onChange={(next) =>
+            patchParams({
+              status: next.status,
+              q: next.q,
+              ort: next.ort,
+              verschwunden: next.verschwunden ? "1" : null,
+            })
+          }
+        />
+      </div>
 
       <div className="min-w-0 flex-1">
         {/* Ab md: Liste und Detail nebeneinander, verschiebbar. Darunter:

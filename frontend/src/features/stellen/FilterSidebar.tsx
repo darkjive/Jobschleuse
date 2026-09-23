@@ -34,7 +34,7 @@ export function FilterSidebar({ value, onChange }: Props) {
   useEffect(() => setOrt(value.ort), [value.ort]);
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col gap-4">
+    <aside className="flex w-full shrink-0 flex-col gap-4 md:w-56">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="filter-status">Status</Label>
         <Select

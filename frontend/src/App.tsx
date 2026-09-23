@@ -1,3 +1,4 @@
+import { UserRound } from "lucide-react";
 import { Link, Outlet } from "react-router";
 import { CommandPalette } from "@/components/command-palette";
 import { Button } from "@/components/ui/button";
@@ -18,8 +19,10 @@ function Header() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" asChild>
-            <Link to="/profil">Profil</Link>
+          <Button variant="outline" size="icon" asChild>
+            <Link to="/profil" aria-label="Profil" title="Profil">
+              <UserRound />
+            </Link>
           </Button>
           <ThemeToggle />
         </div>

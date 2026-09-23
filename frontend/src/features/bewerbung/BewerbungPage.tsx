@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/resizable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SlotCard } from "@/features/bewerbung/SlotCard";
+import { slotSortierung } from "@/features/bewerbung/slots";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { usePersistedLayout } from "@/hooks/usePersistedLayout";
 import { useTask } from "@/hooks/useTask";
@@ -89,15 +90,17 @@ export function BewerbungPage() {
 
   const slotListe = (
     <div className="flex h-full flex-col gap-3 overflow-y-auto pr-2">
-      {Object.entries(application.slots).map(([name, daten]) => (
-        <SlotCard
-          key={name}
-          appId={id}
-          name={name}
-          daten={daten}
-          onGeaendert={() => setPreviewKey((k) => k + 1)}
-        />
-      ))}
+      {Object.entries(application.slots)
+        .sort(([a], [b]) => slotSortierung(a, b))
+        .map(([name, daten]) => (
+          <SlotCard
+            key={name}
+            appId={id}
+            name={name}
+            daten={daten}
+            onGeaendert={() => setPreviewKey((k) => k + 1)}
+          />
+        ))}
     </div>
   );
 
