@@ -190,7 +190,7 @@ export function StellenTable({
                         aria-label="Zeile auswählen"
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-normal wrap-anywhere">
                       <div className="flex flex-col gap-1 py-1">
                         <span className="font-medium">{stelle.title}</span>
                         <span className="text-sm text-muted-foreground">

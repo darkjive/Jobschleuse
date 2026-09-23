@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/resizable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SlotCard } from "@/features/bewerbung/SlotCard";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { usePersistedLayout } from "@/hooks/usePersistedLayout";
 import { useTask } from "@/hooks/useTask";
 import { useSetHeaderActions } from "@/lib/header-actions";
@@ -22,6 +23,8 @@ export function BewerbungPage() {
   const [previewKey, setPreviewKey] = useState(0);
   const [exportTaskId, setExportTaskId] = useState<string | null>(null);
   const { defaultLayout, onLayoutChanged } = usePersistedLayout("bewerbung-split");
+  const isMobile = useMediaQuery("(max-width: 767px)");
+  const [mobileTab, setMobileTab] = useState<"inhalte" | "vorschau">("inhalte");
 
   const detailQuery = useQuery({
     queryKey: ["applications", id],
@@ -84,41 +87,72 @@ export function BewerbungPage() {
 
   const { application, stelle } = detailQuery.data;
 
+  const slotListe = (
+    <div className="flex h-full flex-col gap-3 overflow-y-auto pr-2">
+      {Object.entries(application.slots).map(([name, daten]) => (
+        <SlotCard
+          key={name}
+          appId={id}
+          name={name}
+          daten={daten}
+          onGeaendert={() => setPreviewKey((k) => k + 1)}
+        />
+      ))}
+    </div>
+  );
+
+  const vorschau = (
+    <iframe
+      key={previewKey}
+      title="Vorschau der Bewerbung"
+      src={`/applications/${id}/preview`}
+      className="h-full w-full rounded-md border border-border bg-white"
+    />
+  );
+
   return (
     <div className="flex h-full flex-col gap-4">
       {headerActions}
       <h2 className="text-lg font-semibold">
         {stelle.title} — {stelle.company}
       </h2>
-      <ResizablePanelGroup
-        orientation="horizontal"
-        defaultLayout={defaultLayout}
-        onLayoutChanged={onLayoutChanged}
-        className="flex-1"
-      >
-        <ResizablePanel id="editor" defaultSize={50} minSize={30}>
-          <div className="flex h-full flex-col gap-3 overflow-y-auto pr-2">
-            {Object.entries(application.slots).map(([name, daten]) => (
-              <SlotCard
-                key={name}
-                appId={id}
-                name={name}
-                daten={daten}
-                onGeaendert={() => setPreviewKey((k) => k + 1)}
-              />
-            ))}
+      {isMobile ? (
+        <>
+          <div className="flex gap-2">
+            <Button
+              variant={mobileTab === "inhalte" ? "secondary" : "ghost"}
+              onClick={() => setMobileTab("inhalte")}
+            >
+              Inhalte
+            </Button>
+            <Button
+              variant={mobileTab === "vorschau" ? "secondary" : "ghost"}
+              onClick={() => setMobileTab("vorschau")}
+            >
+              Vorschau
+            </Button>
           </div>
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel id="vorschau" defaultSize={50} minSize={30}>
-          <iframe
-            key={previewKey}
-            title="Vorschau der Bewerbung"
-            src={`/applications/${id}/preview`}
-            className="h-full w-full rounded-md border border-border bg-white"
-          />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          {/* Beide bleiben gemountet, damit ein laufender Auto-Save beim
+              Tab-Wechsel nicht verworfen wird. */}
+          <div className={mobileTab === "inhalte" ? "min-h-0 flex-1" : "hidden"}>{slotListe}</div>
+          <div className={mobileTab === "vorschau" ? "min-h-0 flex-1" : "hidden"}>{vorschau}</div>
+        </>
+      ) : (
+        <ResizablePanelGroup
+          orientation="horizontal"
+          defaultLayout={defaultLayout}
+          onLayoutChanged={onLayoutChanged}
+          className="flex-1"
+        >
+          <ResizablePanel id="editor" defaultSize={50} minSize={30}>
+            {slotListe}
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel id="vorschau" defaultSize={50} minSize={30}>
+            {vorschau}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
     </div>
   );
 }

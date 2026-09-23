@@ -67,8 +67,8 @@ export function SlotCard({ appId, name, daten, onGeaendert }: Props) {
   const regeneriertLaeuft = regenMutation.isPending || task?.status === "läuft";
 
   return (
-    <Card className="gap-3 p-4">
-      <div className="flex items-center justify-between gap-2">
+    <Card className="shrink-0 gap-3 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Label className="font-mono text-sm">{name}</Label>
         <div className="flex items-center gap-2">
           <Badge variant={daten.source === "llm" ? "secondary" : "outline"}>
