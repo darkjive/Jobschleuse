@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { JobBadges } from "@/features/stellen/JobBadges";
 import { api } from "@/lib/api";
+import { STATUS_LABEL } from "@/lib/format";
 import type { JobOut, SortOrder, SortSpalte } from "@/types/api";
 
 const SORTIERBAR: { spalte: SortSpalte; label: string }[] = [
@@ -201,7 +202,7 @@ export function StellenTable({
                     </TableCell>
                     <TableCell>
                       <Badge variant={stelle.status === "selected" ? "default" : "secondary"}>
-                        {stelle.status}
+                        {STATUS_LABEL[stelle.status] ?? stelle.status}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -237,7 +238,7 @@ export function StellenTable({
                   variant={stelle.status === "selected" ? "default" : "secondary"}
                   className="w-fit"
                 >
-                  {stelle.status}
+                  {STATUS_LABEL[stelle.status] ?? stelle.status}
                 </Badge>
               </Card>
             ))}

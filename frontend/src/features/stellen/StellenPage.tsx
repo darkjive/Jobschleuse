@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { FilterSidebar, type FilterState } from "@/features/stellen/FilterSidebar";
 import { StellenDetail } from "@/features/stellen/StellenDetail";
+import { StatusTabs } from "@/features/stellen/StatusTabs";
 import { StellenTable } from "@/features/stellen/StellenTable";
 import { SucheForm } from "@/features/stellen/SucheForm";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -28,7 +29,8 @@ export function StellenPage() {
   const [filterOffen, setFilterOffen] = useState(false);
 
   const filter: FilterState = {
-    status: params.get("status") ?? "new",
+    // "alle" steht explizit in der URL — ein fehlender Parameter heißt "neu".
+    status: params.get("status") === "alle" ? "" : (params.get("status") ?? "new"),
     q: params.get("q") ?? "",
     ort: params.get("ort") ?? "",
     verschwunden: params.get("verschwunden") === "1",
@@ -36,9 +38,7 @@ export function StellenPage() {
   const sort = (params.get("sort") as SortSpalte) || "id";
   const order = (params.get("order") as SortOrder) || "desc";
   const stelleId = params.get("stelle") ? Number(params.get("stelle")) : null;
-  const aktiveFilter = [filter.status !== "new", filter.q, filter.ort, filter.verschwunden].filter(
-    Boolean,
-  ).length;
+  const aktiveFilter = [filter.q, filter.ort, filter.verschwunden].filter(Boolean).length;
 
   const headerActions = useSetHeaderActions(
     <>
@@ -99,6 +99,16 @@ export function StellenPage() {
     enabled: stelleId !== null,
   });
 
+  const anzahlQuery = useQuery({
+    queryKey: ["jobs", "anzahl", filter.q, filter.ort, filter.verschwunden],
+    queryFn: () =>
+      api.jobs.anzahl({
+        q: filter.q || undefined,
+        ort: filter.ort || undefined,
+        verschwunden: filter.verschwunden,
+      }),
+  });
+
   const stellen = useMemo(() => jobsQuery.data ?? [], [jobsQuery.data]);
   const { defaultLayout, onLayoutChanged } = usePersistedLayout("stellen-split");
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -119,7 +129,6 @@ export function StellenPage() {
           value={filter}
           onChange={(next) =>
             patchParams({
-              status: next.status,
               q: next.q,
               ort: next.ort,
               verschwunden: next.verschwunden ? "1" : null,
@@ -128,10 +137,15 @@ export function StellenPage() {
         />
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <StatusTabs
+          value={filter.status}
+          anzahl={anzahlQuery.data}
+          onChange={(status) => patchParams({ status: status || "alle", stelle: null })}
+        />
         {/* Ab md: Liste und Detail nebeneinander, verschiebbar. Darunter:
             nur die Liste, Detail als Sheet von unten. */}
-        <div className="hidden h-full md:block">
+        <div className="hidden min-h-0 flex-1 md:block">
           <ResizablePanelGroup
             orientation="horizontal"
             defaultLayout={defaultLayout}

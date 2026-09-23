@@ -40,16 +40,6 @@ export function Layout() {
         <main className="flex-1 overflow-hidden p-6">
           <Outlet />
         </main>
-        <footer className="border-t border-border px-6 py-4 text-center text-sm text-muted-foreground">
-          <a
-            href="https://paypal.me/AlainRitter"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-foreground"
-          >
-            Unterstützen via PayPal
-          </a>
-        </footer>
         <CommandPalette />
       </div>
     </HeaderActionsProvider>

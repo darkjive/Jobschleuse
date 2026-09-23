@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { MousePointerClick } from "lucide-react";
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import { useNavigate } from "react-router";
@@ -6,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTask } from "@/hooks/useTask";
+import { formatHomeoffice } from "@/lib/format";
 import { api } from "@/lib/api";
 import type { JobOut } from "@/types/api";
 
@@ -73,7 +75,15 @@ export function StellenDetail({ stelle, isLoading }: Props) {
 
   if (!stelle) {
     return (
-      <p className="p-4 text-sm text-muted-foreground">Wähle links eine Stelle aus.</p>
+      <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
+        <MousePointerClick className="size-8 opacity-50" />
+        <p>Wähle links eine Stelle aus.</p>
+        <p className="text-xs">
+          <kbd className="rounded border border-border px-1.5 py-0.5 font-sans">Strg</kbd>{" "}
+          <kbd className="rounded border border-border px-1.5 py-0.5 font-sans">K</kbd> durchsucht
+          alle Stellen.
+        </p>
+      </div>
     );
   }
 
@@ -116,7 +126,7 @@ export function StellenDetail({ stelle, isLoading }: Props) {
         <Fakt label="Vergütung" wert={stelle.salary} />
         <Fakt label="Arbeitszeit" wert={stelle.worktime} />
         <Fakt label="Vertrag" wert={stelle.contract} />
-        <Fakt label="Homeoffice" wert={stelle.homeoffice} />
+        <Fakt label="Homeoffice" wert={formatHomeoffice(stelle.homeoffice)} />
         <Fakt label="Eintritt" wert={stelle.start_date} />
         <Fakt label="Abschluss" wert={stelle.education} />
         <Fakt label="Entfernung" wert={stelle.distance_km != null ? `${stelle.distance_km} km` : null} />

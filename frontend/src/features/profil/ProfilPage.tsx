@@ -56,7 +56,12 @@ function AssetUpload({ art, titel, hinweis, akzeptiert }: AssetUploadProps) {
           key={version}
           src={`/template-assets/assets/${dateiname}?v=${version}`}
           alt={titel}
-          className="max-h-40 max-w-full object-contain"
+          className={
+            art === "portrait"
+              ? // Ausschnitt und Filter wie auf dem Deckblatt (.cover-photo img)
+                "h-64 w-auto object-cover object-[50%_18%] grayscale"
+              : "max-h-40 max-w-full object-contain"
+          }
           onError={(event) => {
             event.currentTarget.style.display = "none";
           }}
@@ -70,7 +75,7 @@ export function ProfilPage() {
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto">
       <h2 className="text-lg font-semibold">Profil</h2>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid items-start gap-4 sm:grid-cols-2">
         <AssetUpload
           art="portrait"
           titel="Porträtfoto"
@@ -84,6 +89,16 @@ export function ProfilPage() {
           akzeptiert="image/png"
         />
       </div>
+      <p className="mt-auto pt-6 text-center text-sm text-muted-foreground">
+        <a
+          href="https://paypal.me/AlainRitter"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-foreground"
+        >
+          Unterstützen via PayPal
+        </a>
+      </p>
     </div>
   );
 }

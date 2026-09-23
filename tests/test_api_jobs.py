@@ -91,6 +91,22 @@ def test_liste_begrenzt_mit_limit(tmp_path):
     assert len(antwort.json()) == 1
 
 
+def test_anzahl_zaehlt_pro_status_mit_filtern(tmp_path):
+    cfg = make_cfg(tmp_path)
+    ids = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    db.set_status(conn, ids["Mechatroniker (m/w/d)"], "selected")
+    conn.close()
+    client = TestClient(create_app(cfg))
+
+    antwort = client.get("/api/jobs/anzahl")
+    assert antwort.status_code == 200
+    assert antwort.json() == {"new": 1, "selected": 1, "rejected": 0}
+
+    gefiltert = client.get("/api/jobs/anzahl", params={"q": "frontend"})
+    assert gefiltert.json() == {"new": 1, "selected": 0, "rejected": 0}
+
+
 def test_detail_liefert_stelle(tmp_path):
     cfg = make_cfg(tmp_path)
     ids = seed(cfg)

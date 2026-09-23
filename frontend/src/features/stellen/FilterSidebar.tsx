@@ -2,13 +2,6 @@ import { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 
 export interface FilterState {
@@ -23,7 +16,7 @@ interface Props {
   onChange: (next: FilterState) => void;
 }
 
-/** Text-Filter (Suche, Ort) laufen debounced — Status/Checkbox sofort,
+/** Text-Filter (Suche, Ort) laufen debounced — Checkbox sofort,
  * wie im bisherigen HTMX-Formular (`hx-trigger="submit, change delay:300ms"`). */
 export function FilterSidebar({ value, onChange }: Props) {
   const [q, setQ] = useState(value.q);
@@ -35,23 +28,6 @@ export function FilterSidebar({ value, onChange }: Props) {
 
   return (
     <aside className="flex w-full shrink-0 flex-col gap-4 md:w-56">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="filter-status">Status</Label>
-        <Select
-          value={value.status || "alle"}
-          onValueChange={(status) => onChange({ ...value, status: status === "alle" ? "" : status })}
-        >
-          <SelectTrigger id="filter-status">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="alle">alle</SelectItem>
-            <SelectItem value="new">neu</SelectItem>
-            <SelectItem value="selected">ausgewählt</SelectItem>
-            <SelectItem value="rejected">aussortiert</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="filter-q">Suche</Label>
         <Input

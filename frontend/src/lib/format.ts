@@ -19,3 +19,20 @@ const EMPLOYER_LABEL: Record<string, string> = {
 export function employerWarnung(employerKind: string | null): string | null {
   return employerKind ? (EMPLOYER_LABEL[employerKind] ?? null) : null;
 }
+
+/** Rohwerte der Quellen (API-Konstanten, ASCII-Umschreibungen) → Anzeige. */
+const HOMEOFFICE_LABEL: Record<string, string> = {
+  moeglich: "möglich",
+  NACH_VEREINBARUNG: "nach Vereinbarung",
+  ANGABE_IN_PROZENT: "anteilig",
+};
+
+export function formatHomeoffice(wert: string | null): string | null {
+  return wert ? (HOMEOFFICE_LABEL[wert] ?? wert) : null;
+}
+
+export const STATUS_LABEL: Record<string, string> = {
+  new: "neu",
+  selected: "ausgewählt",
+  rejected: "aussortiert",
+};
