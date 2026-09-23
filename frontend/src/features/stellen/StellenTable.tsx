@@ -18,7 +18,7 @@ import {
 import { JobBadges } from "@/features/stellen/JobBadges";
 import { api } from "@/lib/api";
 import { STATUS_LABEL } from "@/lib/format";
-import type { JobOut, SortOrder, SortSpalte } from "@/types/api";
+import type { JobListItem, SortOrder, SortSpalte } from "@/types/api";
 
 const SORTIERBAR: { spalte: SortSpalte; label: string }[] = [
   { spalte: "frische", label: "Frische" },
@@ -28,13 +28,13 @@ const SORTIERBAR: { spalte: SortSpalte; label: string }[] = [
 ];
 
 interface Props {
-  stellen: JobOut[];
+  stellen: JobListItem[];
   isLoading: boolean;
   sort: SortSpalte;
   order: SortOrder;
   onSortChange: (sort: SortSpalte, order: SortOrder) => void;
   selectedId: number | null;
-  onSelectRow: (job: JobOut) => void;
+  onSelectRow: (job: JobListItem) => void;
   /** Tabelle ab md, Kartenliste darunter — nur eine wird gerendert. */
   variante: "tabelle" | "karten";
 }
@@ -91,7 +91,9 @@ export function StellenTable({
     observerRef.current?.disconnect();
     observerRef.current = null;
     if (!el) return;
-    const observer = new ResizeObserver(([entry]) => setToolbarHoehe(entry.contentRect.height));
+    // Border-Box, nicht contentRect: Padding und Rahmen gehören zur Höhe,
+    // sonst schiebt sich der Tabellenkopf um genau diese Pixel darunter.
+    const observer = new ResizeObserver(() => setToolbarHoehe(el.offsetHeight));
     observer.observe(el);
     observerRef.current = observer;
   }, []);
