@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { slotLabel } from "@/features/bewerbung/slots";
+import { merkeSpeichern } from "@/features/bewerbung/speichern";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { useTask } from "@/hooks/useTask";
 import { api } from "@/lib/api";
@@ -28,12 +29,20 @@ export function SlotCard({ appId, name, daten, onGeaendert }: Props) {
   const [status, setStatus] = useState<"speichert" | "gespeichert" | null>(null);
   const [regenTaskId, setRegenTaskId] = useState<string | null>(null);
 
-  useEffect(() => setValue(daten.value), [daten.value]);
+  // Eingabe, die der Server noch nicht bestätigt hat. Solange es sie gibt,
+  // darf ein Refetch das Feld nicht zurücksetzen — sonst überschreibt der
+  // gerade gespeicherte, ältere Stand das, was inzwischen getippt wurde.
+  const ungespeichertRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (ungespeichertRef.current === null) setValue(daten.value);
+  }, [daten.value]);
 
   const saveMutation = useMutation({
     mutationFn: (wert: string) => api.applications.slotSpeichern(appId, name, wert),
     onMutate: () => setStatus("speichert"),
-    onSuccess: () => {
+    onSuccess: (_ergebnis, wert) => {
+      if (ungespeichertRef.current === wert) ungespeichertRef.current = null;
       setStatus("gespeichert");
       queryClient.invalidateQueries({ queryKey: ["applications", appId] });
       onGeaendert();
@@ -44,7 +53,14 @@ export function SlotCard({ appId, name, daten, onGeaendert }: Props) {
     },
   });
 
-  const debouncedSave = useDebouncedCallback((wert: string) => saveMutation.mutate(wert), 800);
+  const debouncedSave = useDebouncedCallback(
+    (wert: string) => merkeSpeichern(saveMutation.mutateAsync(wert)),
+    800,
+  );
+  const { flush } = debouncedSave;
+
+  // Seite verlassen, bevor die Verzögerung abläuft: trotzdem speichern.
+  useEffect(() => flush, [flush]);
 
   const regenMutation = useMutation({
     mutationFn: () => api.applications.slotRegenerieren(appId, name),
@@ -106,8 +122,10 @@ export function SlotCard({ appId, name, daten, onGeaendert }: Props) {
         className={cn("text-base md:text-base", lang ? "min-h-64" : "min-h-0")}
         onChange={(event) => {
           setValue(event.target.value);
+          ungespeichertRef.current = event.target.value;
           debouncedSave(event.target.value);
         }}
+        onBlur={flush}
       />
     </Card>
   );

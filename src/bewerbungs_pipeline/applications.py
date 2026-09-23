@@ -33,6 +33,15 @@ def slugify(text: str) -> str:
     return slug or "firma"
 
 
+# Zeichen, die in Dateinamen einen Pfad bilden oder unter Windows verboten sind.
+_DATEINAME_VERBOTEN = re.compile(r'[/\\:*?"<>|\x00-\x1f]')
+
+
+def dateiname_teil(text: str) -> str:
+    """Macht Freitext (Firmen-, Bewerbername) dateinamentauglich."""
+    return _DATEINAME_VERBOTEN.sub("-", text).strip()
+
+
 def ensure_description(conn, row) -> sqlite3.Row:
     """Holt bei zu kurzer Beschreibung den Volltext von der Quelle nach."""
     too_short = len(row["description_md"]) < MIN_DESCRIPTION_CHARS
@@ -254,7 +263,10 @@ def export(conn, app_id: int, cfg: Config) -> Path:
         shutil.copytree(template_assets, out_dir / "assets", dirs_exist_ok=True)
 
     _pruefe_verweise(out_dir / "index.html")
-    pdf_datei = out_dir / f"Bewerbung_{_bewerbername(cfg)}_{row['company']}.pdf"
+    pdf_datei = out_dir / (
+        f"Bewerbung_{dateiname_teil(_bewerbername(cfg))}"
+        f"_{dateiname_teil(row['company'])}.pdf"
+    )
     try:
         pdf.erzeuge(out_dir / "index.html", pdf_datei)
     except pdf.PdfError as exc:

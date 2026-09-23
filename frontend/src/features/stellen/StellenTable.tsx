@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,17 +77,23 @@ export function StellenTable({
   onSelectRow,
   variante,
 }: Props) {
-  const [ausgewaehlt, setAusgewaehlt] = useState<Set<number>>(new Set());
+  const [angehakt, setAngehakt] = useState<Set<number>>(new Set());
+  // Nur, was gerade sichtbar ist: nach einem Reiter- oder Filterwechsel darf
+  // die Sammelaktion keine Stellen treffen, die nicht mehr in der Liste stehen.
+  const ausgewaehlt = new Set(stellen.filter((s) => angehakt.has(s.id)).map((s) => s.id));
   const queryClient = useQueryClient();
-  const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarHoehe, setToolbarHoehe] = useState(0);
+  const observerRef = useRef<ResizeObserver | null>(null);
 
-  useLayoutEffect(() => {
-    const el = toolbarRef.current;
+  // Ref-Callback statt Effekt: die Toolbar erscheint erst nach dem Laden
+  // (vorher Skeleton), ein Mount-Effekt fände sie nie.
+  const toolbarRef = useCallback((el: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => setToolbarHoehe(entry.contentRect.height));
     observer.observe(el);
-    return () => observer.disconnect();
+    observerRef.current = observer;
   }, []);
 
   const bulkMutation = useMutation({
@@ -96,22 +102,22 @@ export function StellenTable({
     onSuccess: (ergebnis) => {
       toast.success(`${ergebnis.aktualisiert} Stellen aktualisiert.`);
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      setAusgewaehlt(new Set());
+      setAngehakt(new Set());
     },
     onError: (error) => toast.error(`Bulk-Aktion fehlgeschlagen: ${error.message}`),
   });
 
   function toggleRow(id: number, checked: boolean) {
-    setAusgewaehlt((bisher) => {
-      const kopie = new Set(bisher);
-      if (checked) kopie.add(id);
-      else kopie.delete(id);
-      return kopie;
-    });
+    // Von der sichtbaren Auswahl aus, damit ausgeblendete Häkchen nicht
+    // beim Zurückwechseln wieder auftauchen.
+    const kopie = new Set(ausgewaehlt);
+    if (checked) kopie.add(id);
+    else kopie.delete(id);
+    setAngehakt(kopie);
   }
 
   function toggleAlle(checked: boolean) {
-    setAusgewaehlt(checked ? new Set(stellen.map((s) => s.id)) : new Set());
+    setAngehakt(checked ? new Set(stellen.map((s) => s.id)) : new Set());
   }
 
   if (isLoading) {

@@ -11,6 +11,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { SlotCard } from "@/features/bewerbung/SlotCard";
 import { slotSortierung } from "@/features/bewerbung/slots";
+import { alleGespeichert } from "@/features/bewerbung/speichern";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { usePersistedLayout } from "@/hooks/usePersistedLayout";
 import { useTask } from "@/hooks/useTask";
@@ -34,7 +35,12 @@ export function BewerbungPage() {
   });
 
   const exportMutation = useMutation({
-    mutationFn: () => api.applications.exportieren(id),
+    // Der Klick auf „Exportieren“ nimmt dem Textfeld den Fokus, onBlur stößt
+    // das Speichern an — darauf warten, sonst fehlt die letzte Eingabe.
+    mutationFn: async () => {
+      await alleGespeichert();
+      return api.applications.exportieren(id);
+    },
     onSuccess: (ref) => setExportTaskId(ref.task_id),
     onError: (error) => toast.error(`Export fehlgeschlagen: ${error.message}`),
   });

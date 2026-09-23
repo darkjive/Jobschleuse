@@ -34,7 +34,9 @@ interface Props {
 export function StellenDetail({ stelle, isLoading }: Props) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [erzeugenTaskId, setErzeugenTaskId] = useState<string | null>(null);
+  // Job-ID mitführen: die Komponente bleibt beim Wechsel der Stelle
+  // gemountet, der Lauf gehört aber zu der Stelle, für die er gestartet wurde.
+  const [erzeugen, setErzeugen] = useState<{ taskId: string; jobId: number } | null>(null);
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: "selected" | "rejected" }) =>
@@ -45,21 +47,21 @@ export function StellenDetail({ stelle, isLoading }: Props) {
 
   const erzeugenMutation = useMutation({
     mutationFn: (jobId: number) => api.applications.erzeugen(jobId),
-    onSuccess: (ref) => setErzeugenTaskId(ref.task_id),
+    onSuccess: (ref, jobId) => setErzeugen({ taskId: ref.task_id, jobId }),
     onError: (error) => toast.error(`Bewerbung konnte nicht gestartet werden: ${error.message}`),
   });
 
-  const { data: task } = useTask(erzeugenTaskId);
+  const { data: task } = useTask(erzeugen?.taskId ?? null);
 
   useEffect(() => {
     if (!task) return;
     if (task.status === "fertig") {
       toast.success("Bewerbung erzeugt.");
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      setErzeugenTaskId(null);
+      setErzeugen(null);
     } else if (task.status === "fehler") {
       toast.error(`Bewerbung fehlgeschlagen: ${task.meldung}`);
-      setErzeugenTaskId(null);
+      setErzeugen(null);
     }
   }, [task, queryClient]);
 
@@ -87,7 +89,9 @@ export function StellenDetail({ stelle, isLoading }: Props) {
     );
   }
 
-  const erzeugtLaeuft = erzeugenMutation.isPending || task?.status === "läuft";
+  const erzeugtLaeuft =
+    (erzeugenMutation.isPending && erzeugenMutation.variables === stelle.id) ||
+    (erzeugen?.jobId === stelle.id && task?.status !== "fertig" && task?.status !== "fehler");
 
   return (
     <article className="flex flex-col gap-4 p-4">

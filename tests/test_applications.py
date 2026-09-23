@@ -273,3 +273,23 @@ def test_create_akzeptiert_ausgefuelltes_profil(tmp_path):
     job_id = seed(cfg)
     conn = db.connect(cfg.db_path)
     assert applications.create(conn, job_id, cfg, FakeClient(GOOD)) > 0
+
+
+def test_export_pdf_name_ohne_pfadtrenner(tmp_path, monkeypatch):
+    """„Frankfurt/ Main“ im Firmennamen darf keinen Unterordner erzeugen."""
+    from bewerbungs_pipeline import pdf as pdf_modul
+
+    cfg = make_cfg(tmp_path)
+    job_id = seed(cfg)
+    conn = db.connect(cfg.db_path)
+    app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
+    conn.execute(
+        "UPDATE jobs SET company = ? WHERE id = ?",
+        ("Bader GmbH Frankfurt/ Main", job_id),
+    )
+    conn.commit()
+    ziele = []
+    monkeypatch.setattr(pdf_modul, "erzeuge", lambda html, ziel: ziele.append(ziel))
+    out_dir = applications.export(conn, app_id, cfg)
+    assert ziele[0].parent == out_dir
+    assert ziele[0].name == "Bewerbung_Alain Ritter_Bader GmbH Frankfurt- Main.pdf"

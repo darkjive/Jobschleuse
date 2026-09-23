@@ -11,9 +11,13 @@ export interface FilterState {
   verschwunden: boolean;
 }
 
+export type FilterPatch = Partial<Omit<FilterState, "status">>;
+
 interface Props {
   value: FilterState;
-  onChange: (next: FilterState) => void;
+  /** Nur die geänderten Felder — ein verzögerter Aufruf darf nicht mit
+   * einem veralteten Gesamtstand die übrigen Filter zurücksetzen. */
+  onChange: (patch: FilterPatch) => void;
 }
 
 /** Text-Filter (Suche, Ort) laufen debounced — Checkbox sofort,
@@ -21,7 +25,10 @@ interface Props {
 export function FilterSidebar({ value, onChange }: Props) {
   const [q, setQ] = useState(value.q);
   const [ort, setOrt] = useState(value.ort);
-  const debouncedChange = useDebouncedCallback(onChange, 300);
+  // Je Feld ein eigener Debounce: sonst verschluckt ein schneller Wechsel
+  // von „Suche“ nach „Ort“ die erste Eingabe.
+  const debouncedQ = useDebouncedCallback((wert: string) => onChange({ q: wert }), 300);
+  const debouncedOrt = useDebouncedCallback((wert: string) => onChange({ ort: wert }), 300);
 
   useEffect(() => setQ(value.q), [value.q]);
   useEffect(() => setOrt(value.ort), [value.ort]);
@@ -36,7 +43,7 @@ export function FilterSidebar({ value, onChange }: Props) {
           value={q}
           onChange={(event) => {
             setQ(event.target.value);
-            debouncedChange({ ...value, q: event.target.value });
+            debouncedQ(event.target.value);
           }}
         />
       </div>
@@ -48,14 +55,14 @@ export function FilterSidebar({ value, onChange }: Props) {
           value={ort}
           onChange={(event) => {
             setOrt(event.target.value);
-            debouncedChange({ ...value, ort: event.target.value });
+            debouncedOrt(event.target.value);
           }}
         />
       </div>
       <label className="flex items-center gap-2 text-sm">
         <Checkbox
           checked={value.verschwunden}
-          onCheckedChange={(checked) => onChange({ ...value, verschwunden: checked === true })}
+          onCheckedChange={(checked) => onChange({ verschwunden: checked === true })}
         />
         auch verschwundene zeigen
       </label>

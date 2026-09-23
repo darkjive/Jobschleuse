@@ -127,11 +127,10 @@ export function StellenPage() {
       <div className={cn("shrink-0 md:block", !filterOffen && "hidden")}>
         <FilterSidebar
           value={filter}
-          onChange={(next) =>
+          onChange={({ verschwunden, ...text }) =>
             patchParams({
-              q: next.q,
-              ort: next.ort,
-              verschwunden: next.verschwunden ? "1" : null,
+              ...text,
+              ...(verschwunden !== undefined && { verschwunden: verschwunden ? "1" : null }),
             })
           }
         />

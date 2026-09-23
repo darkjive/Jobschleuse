@@ -22,7 +22,9 @@ const schema = z.object({
   quelle: z.enum(["arbeitsagentur", "indeed"]),
   was: z.string().min(1, "Pflichtfeld"),
   wo: z.string().min(1, "Pflichtfeld"),
-  umkreis: z.number().min(0).max(200),
+  // Leeres Feld liefert per valueAsNumber NaN — ohne eigene Meldung bliebe
+  // der Klick auf „Stellen suchen“ kommentarlos wirkungslos.
+  umkreis: z.number({ error: "0–200 km" }).min(0, "0–200 km").max(200, "0–200 km"),
   seit: z.string(),
   ohne_zeitarbeit: z.boolean(),
   nur_arbeit: z.boolean(),
@@ -123,16 +125,21 @@ export function SucheForm() {
           />
           {errors.wo && <p className="text-xs text-destructive">{errors.wo.message}</p>}
         </div>
-        <InputGroup className="md:w-24">
-          <InputGroupInput
-            {...register("umkreis", { valueAsNumber: true })}
-            type="number"
-            min={0}
-            max={200}
-            aria-label="Umkreis in km"
-          />
-          <InputGroupAddon align="inline-end">km</InputGroupAddon>
-        </InputGroup>
+        <div className="flex flex-col gap-1 md:w-24">
+          <InputGroup>
+            <InputGroupInput
+              {...register("umkreis", { valueAsNumber: true })}
+              type="number"
+              min={0}
+              max={200}
+              aria-label="Umkreis in km"
+            />
+            <InputGroupAddon align="inline-end">km</InputGroupAddon>
+          </InputGroup>
+          {errors.umkreis && (
+            <p className="text-xs text-destructive">{errors.umkreis.message}</p>
+          )}
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <Controller

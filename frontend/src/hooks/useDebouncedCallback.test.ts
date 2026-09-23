@@ -44,4 +44,36 @@ describe("useDebouncedCallback", () => {
 
     expect(callback).not.toHaveBeenCalled();
   });
+
+  it("flush() führt den ausstehenden Aufruf sofort aus", () => {
+    const callback = vi.fn();
+    const { result } = renderHook(() => useDebouncedCallback(callback, 800));
+
+    act(() => result.current("a"));
+    act(() => result.current.flush());
+    expect(callback).toHaveBeenCalledExactlyOnceWith("a");
+
+    act(() => vi.advanceTimersByTime(800));
+    expect(callback).toHaveBeenCalledOnce();
+  });
+
+  it("flush() ohne ausstehenden Aufruf tut nichts", () => {
+    const callback = vi.fn();
+    const { result } = renderHook(() => useDebouncedCallback(callback, 800));
+
+    act(() => result.current.flush());
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("flush() nach dem Unmount holt einen ausstehenden Aufruf nach", () => {
+    const callback = vi.fn();
+    const { result, unmount } = renderHook(() => useDebouncedCallback(callback, 800));
+
+    act(() => result.current("a"));
+    const { flush } = result.current;
+    unmount();
+    flush();
+
+    expect(callback).toHaveBeenCalledExactlyOnceWith("a");
+  });
 });
