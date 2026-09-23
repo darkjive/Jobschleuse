@@ -29,4 +29,4 @@ Frontend-Arbeit passiert in `frontend/` (Vite + React + TypeScript + shadcn/ui) 
 
 ## Doku
 
-Design-Specs und Implementierungspläne liegen datiert unter `docs/specs/` und `docs/plans/`.
+Release Notes liegen datiert unter `docs/releases/`.
