@@ -24,9 +24,8 @@ Frontend-Arbeit passiert in `frontend/` (Vite + React + TypeScript + shadcn/ui) 
 
 ## Gotchas
 
-- `CBKS_INBOX` (Env-Var) verweist auf ein externes Schwister-Repo (`/home/a/Dev/Synapse`, vormals `cbks`) — in `config.py` als optionaler Pfad verankert, aktuell aber nirgends aktiv genutzt.
 - LLM-Output (`llm.py`) wird aktiv gegen `profile.yaml` validiert (keine erfundenen Angaben, keine Technologien außerhalb des Profils, erzwungenes Antwortschema) — nicht blind übernehmen, wenn an der Generierung gearbeitet wird.
-- Git-Workflow: Commits gehen direkt auf `master`, keine Feature-Branches/PRs.
+- Git-Workflow: Feature-Branches + Pull Requests (nicht mehr direkt auf `master` committen).
 
 ## Doku
 

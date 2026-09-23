@@ -23,7 +23,6 @@ def make_cfg(tmp_path) -> Config:
         out_dir=tmp_path / "out",
         template_path=vorlage,
         profile_path=tmp_path / "profile.yaml",
-        cbks_inbox=None,
         llm_base_url="",
         llm_api_key="",
         llm_model="",

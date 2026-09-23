@@ -22,7 +22,7 @@ class FakeClient:
         )
 
 
-def make_cfg(tmp_path, cbks_inbox=None) -> Config:
+def make_cfg(tmp_path) -> Config:
     profile = tmp_path / "profile.yaml"
     profile.write_text("name: Alain Ritter\nemail: cosmwave@gmail.com\n")
     return Config(
@@ -30,7 +30,6 @@ def make_cfg(tmp_path, cbks_inbox=None) -> Config:
         out_dir=tmp_path / "out",
         template_path=TEMPLATE,
         profile_path=profile,
-        cbks_inbox=cbks_inbox,
         llm_base_url="http://localhost",
         llm_api_key="test",
         llm_model="test-model",
@@ -77,30 +76,6 @@ def test_generate_writes_output_and_sets_status(tmp_path):
     assert "Dieser Text ist statisch und bleibt unverändert." in html
     stelle = (out_dir / "stelle.md").read_text()
     assert "Servicetechniker" in stelle
-    assert applications.get_by_job(conn, job_id) is not None
-
-
-def test_generate_copies_to_cbks_inbox(tmp_path):
-    inbox = tmp_path / "inbox"
-    inbox.mkdir()
-    cfg = make_cfg(tmp_path, cbks_inbox=inbox)
-    job_id = seed(cfg)
-    conn = db.connect(cfg.db_path)
-    generate.generate_application(conn, job_id, cfg, FakeClient(GOOD))
-    names = {p.name for p in inbox.iterdir()}
-    assert names == {
-        "bewerbung-beispiel-ag.html",
-        "stelle-beispiel-ag.md",
-        "Bewerbung_Alain Ritter_Beispiel AG.pdf",
-    }
-
-
-def test_generate_missing_inbox_warns_but_succeeds(tmp_path, capsys):
-    cfg = make_cfg(tmp_path, cbks_inbox=tmp_path / "gibtsnicht")
-    job_id = seed(cfg)
-    conn = db.connect(cfg.db_path)
-    generate.generate_application(conn, job_id, cfg, FakeClient(GOOD))
-    assert "CBKS-Inbox" in capsys.readouterr().err
     assert applications.get_by_job(conn, job_id) is not None
 
 

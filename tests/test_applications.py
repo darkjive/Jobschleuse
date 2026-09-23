@@ -29,7 +29,7 @@ class FakeClient:
         )
 
 
-def make_cfg(tmp_path, cbks_inbox=None) -> Config:
+def make_cfg(tmp_path) -> Config:
     profile = tmp_path / "profile.yaml"
     profile.write_text("name: Alain Ritter\nemail: cosmwave@gmail.com\n")
     return Config(
@@ -37,7 +37,6 @@ def make_cfg(tmp_path, cbks_inbox=None) -> Config:
         out_dir=tmp_path / "out",
         template_path=TEMPLATE,
         profile_path=profile,
-        cbks_inbox=cbks_inbox,
         llm_base_url="http://localhost",
         llm_api_key="test",
         llm_model="test-model",
@@ -165,31 +164,6 @@ def test_export_writes_html_and_stelle(tmp_path):
     out_dir = applications.export(conn, app_id, cfg)
     assert "Beispiel AG" in (out_dir / "index.html").read_text()
     assert "Servicetechniker" in (out_dir / "stelle.md").read_text()
-
-
-def test_export_copies_to_cbks_inbox(tmp_path):
-    inbox = tmp_path / "inbox"
-    inbox.mkdir()
-    cfg = make_cfg(tmp_path, cbks_inbox=inbox)
-    job_id = seed(cfg)
-    conn = db.connect(cfg.db_path)
-    app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
-    applications.export(conn, app_id, cfg)
-    names = {p.name for p in inbox.iterdir()}
-    assert names == {
-        "bewerbung-beispiel-ag.html",
-        "stelle-beispiel-ag.md",
-        "Bewerbung_Alain Ritter_Beispiel AG.pdf",
-    }
-
-
-def test_export_missing_inbox_warns_but_succeeds(tmp_path, capsys):
-    cfg = make_cfg(tmp_path, cbks_inbox=tmp_path / "gibtsnicht")
-    job_id = seed(cfg)
-    conn = db.connect(cfg.db_path)
-    app_id = applications.create(conn, job_id, cfg, FakeClient(GOOD))
-    applications.export(conn, app_id, cfg)
-    assert "CBKS-Inbox" in capsys.readouterr().err
 
 
 def test_regenerate_slot_replaces_value_and_marks_llm(tmp_path):

@@ -19,7 +19,6 @@ def make_cfg(tmp_path) -> Config:
         out_dir=tmp_path / "out",
         template_path=TEMPLATE,
         profile_path=profile,
-        cbks_inbox=None,
         llm_base_url="http://localhost",
         llm_api_key="test",
         llm_model="test-model",

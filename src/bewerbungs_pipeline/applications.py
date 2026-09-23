@@ -272,24 +272,6 @@ def export(conn, app_id: int, cfg: Config) -> Path:
     except pdf.PdfError as exc:
         raise ApplicationError(str(exc)) from exc
 
-    if cfg.cbks_inbox is not None:
-        if cfg.cbks_inbox.is_dir():
-            shutil.copy(
-                out_dir / "index.html", cfg.cbks_inbox / f"bewerbung-{slug}.html"
-            )
-            shutil.copy(out_dir / "stelle.md", cfg.cbks_inbox / f"stelle-{slug}.md")
-            shutil.copy(pdf_datei, cfg.cbks_inbox / pdf_datei.name)
-            if template_css.exists():
-                shutil.copy(template_css, cfg.cbks_inbox / "styles.css")
-            if template_assets.is_dir():
-                shutil.copytree(
-                    template_assets, cfg.cbks_inbox / "assets", dirs_exist_ok=True
-                )
-        else:
-            print(
-                f"Warnung: CBKS-Inbox {cfg.cbks_inbox} existiert nicht — übersprungen.",
-                file=sys.stderr,
-            )
     return out_dir
 
 
