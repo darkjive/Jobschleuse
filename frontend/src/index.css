@@ -4,10 +4,9 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Satoshi Variable — identisch zur bisherigen HTMX-Oberfläche
-   (vgl. src/bewerbungs_pipeline/web/static/tokens.css). Über src/assets/
-   statt public/, damit Vites Asset-Pipeline die Pfade unter dem
-   konfigurierten `base: '/app/'` korrekt auflöst. */
+/* Satoshi Variable — identisch zur bisherigen HTMX-Oberfläche. Über
+   src/assets/ statt public/, damit Vites Asset-Pipeline die Pfade korrekt
+   auflöst. */
 @font-face {
   font-family: 'Satoshi';
   src: url('./assets/fonts/Satoshi-Variable.woff2') format('woff2-variations');
