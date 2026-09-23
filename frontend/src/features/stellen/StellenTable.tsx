@@ -35,6 +35,8 @@ interface Props {
   onSortChange: (sort: SortSpalte, order: SortOrder) => void;
   selectedId: number | null;
   onSelectRow: (job: JobOut) => void;
+  /** Tabelle ab md, Kartenliste darunter — nur eine wird gerendert. */
+  variante: "tabelle" | "karten";
 }
 
 function SortToolbar({
@@ -73,6 +75,7 @@ export function StellenTable({
   onSortChange,
   selectedId,
   onSelectRow,
+  variante,
 }: Props) {
   const [ausgewaehlt, setAusgewaehlt] = useState<Set<number>>(new Set());
   const queryClient = useQueryClient();
@@ -153,97 +156,93 @@ export function StellenTable({
 
       {stellen.length === 0 ? (
         <p className="text-sm text-muted-foreground">Keine Stellen gefunden.</p>
-      ) : (
-        <>
-          {/* Ab md: echte Tabelle. Darunter: Kartenliste — gleiche Daten,
-              ohne horizontales Scrollen auf schmalen Bildschirmen. */}
-          <div className="hidden overflow-x-auto rounded-md border border-border md:block">
-            <Table>
-              <TableHeader
-                className="sticky z-10 bg-background"
-                style={{ top: toolbarHoehe }}
-              >
-                <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox
-                      checked={stellen.length > 0 && ausgewaehlt.size === stellen.length}
-                      onCheckedChange={(checked) => toggleAlle(checked === true)}
-                      aria-label="Alle auswählen"
-                    />
-                  </TableHead>
-                  <TableHead>Stelle</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stellen.map((stelle) => (
-                  <TableRow
-                    key={stelle.id}
-                    data-state={selectedId === stelle.id ? "selected" : undefined}
-                    className="cursor-pointer"
-                    onClick={() => onSelectRow(stelle)}
-                  >
-                    <TableCell>
-                      <Checkbox
-                        checked={ausgewaehlt.has(stelle.id)}
-                        onCheckedChange={(checked) => toggleRow(stelle.id, checked === true)}
-                        onClick={(event) => event.stopPropagation()}
-                        aria-label="Zeile auswählen"
-                      />
-                    </TableCell>
-                    <TableCell className="whitespace-normal wrap-anywhere">
-                      <div className="flex flex-col gap-1 py-1">
-                        <span className="font-medium">{stelle.title}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {stelle.company} · {stelle.location}
-                        </span>
-                        <JobBadges stelle={stelle} />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={stelle.status === "selected" ? "default" : "secondary"}>
-                        {STATUS_LABEL[stelle.status] ?? stelle.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="flex flex-col gap-2 md:hidden">
-            {stellen.map((stelle) => (
-              <Card
-                key={stelle.id}
-                data-state={selectedId === stelle.id ? "selected" : undefined}
-                className="cursor-pointer gap-2 p-3 data-[state=selected]:border-primary"
-                onClick={() => onSelectRow(stelle)}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-col gap-1">
-                    <span className="font-medium">{stelle.title}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {stelle.company} · {stelle.location}
-                    </span>
-                  </div>
+      ) : variante === "tabelle" ? (
+        <div className="overflow-x-auto rounded-md border border-border">
+          <Table>
+            <TableHeader
+              className="sticky z-10 bg-background"
+              style={{ top: toolbarHoehe }}
+            >
+              <TableRow>
+                <TableHead className="w-10">
                   <Checkbox
-                    checked={ausgewaehlt.has(stelle.id)}
-                    onCheckedChange={(checked) => toggleRow(stelle.id, checked === true)}
-                    onClick={(event) => event.stopPropagation()}
-                    aria-label="Zeile auswählen"
+                    checked={stellen.length > 0 && ausgewaehlt.size === stellen.length}
+                    onCheckedChange={(checked) => toggleAlle(checked === true)}
+                    aria-label="Alle auswählen"
                   />
-                </div>
-                <JobBadges stelle={stelle} />
-                <Badge
-                  variant={stelle.status === "selected" ? "default" : "secondary"}
-                  className="w-fit"
+                </TableHead>
+                <TableHead>Stelle</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {stellen.map((stelle) => (
+                <TableRow
+                  key={stelle.id}
+                  data-state={selectedId === stelle.id ? "selected" : undefined}
+                  className="cursor-pointer"
+                  onClick={() => onSelectRow(stelle)}
                 >
-                  {STATUS_LABEL[stelle.status] ?? stelle.status}
-                </Badge>
-              </Card>
-            ))}
-          </div>
-        </>
+                  <TableCell>
+                    <Checkbox
+                      checked={ausgewaehlt.has(stelle.id)}
+                      onCheckedChange={(checked) => toggleRow(stelle.id, checked === true)}
+                      onClick={(event) => event.stopPropagation()}
+                      aria-label="Zeile auswählen"
+                    />
+                  </TableCell>
+                  <TableCell className="whitespace-normal wrap-anywhere">
+                    <div className="flex flex-col gap-1 py-1">
+                      <span className="font-medium">{stelle.title}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {stelle.company} · {stelle.location}
+                      </span>
+                      <JobBadges stelle={stelle} />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={stelle.status === "selected" ? "default" : "secondary"}>
+                      {STATUS_LABEL[stelle.status] ?? stelle.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {stellen.map((stelle) => (
+            <Card
+              key={stelle.id}
+              data-state={selectedId === stelle.id ? "selected" : undefined}
+              className="cursor-pointer gap-2 p-3 data-[state=selected]:border-primary"
+              onClick={() => onSelectRow(stelle)}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-col gap-1">
+                  <span className="font-medium">{stelle.title}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {stelle.company} · {stelle.location}
+                  </span>
+                </div>
+                <Checkbox
+                  checked={ausgewaehlt.has(stelle.id)}
+                  onCheckedChange={(checked) => toggleRow(stelle.id, checked === true)}
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label="Zeile auswählen"
+                />
+              </div>
+              <JobBadges stelle={stelle} />
+              <Badge
+                variant={stelle.status === "selected" ? "default" : "secondary"}
+                className="w-fit"
+              >
+                {STATUS_LABEL[stelle.status] ?? stelle.status}
+              </Badge>
+            </Card>
+          ))}
+        </div>
       )}
     </div>
   );

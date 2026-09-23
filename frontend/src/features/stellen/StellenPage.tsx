@@ -144,61 +144,67 @@ export function StellenPage() {
           onChange={(status) => patchParams({ status: status || "alle", stelle: null })}
         />
         {/* Ab md: Liste und Detail nebeneinander, verschiebbar. Darunter:
-            nur die Liste, Detail als Sheet von unten. */}
-        <div className="hidden min-h-0 flex-1 md:block">
-          <ResizablePanelGroup
-            orientation="horizontal"
-            defaultLayout={defaultLayout}
-            onLayoutChanged={onLayoutChanged}
-          >
-            <ResizablePanel id="liste" defaultSize={60} minSize={35}>
-              <div className="h-full overflow-y-auto pr-2">
-                <StellenTable
-                  stellen={stellen}
-                  isLoading={jobsQuery.isLoading}
-                  sort={sort}
-                  order={order}
-                  onSortChange={onSortChange}
-                  selectedId={stelleId}
-                  onSelectRow={onSelectRow}
-                />
-              </div>
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel id="detail" defaultSize={40} minSize={25}>
-              <div className="h-full overflow-y-auto rounded-md border border-border">
-                <StellenDetail stelle={detailQuery.data} isLoading={detailQuery.isFetching} />
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </div>
-
-        <div className="md:hidden">
-          <StellenTable
-            stellen={stellen}
-            isLoading={jobsQuery.isLoading}
-            sort={sort}
-            order={order}
-            onSortChange={onSortChange}
-            selectedId={stelleId}
-            onSelectRow={onSelectRow}
-          />
-          <Sheet
-            open={isMobile && stelleId !== null}
-            onOpenChange={(offen) => {
-              if (!offen) patchParams({ stelle: null });
-            }}
-          >
-            <SheetContent side="bottom" className="h-[85vh]">
-              <SheetHeader className="sr-only">
-                <SheetTitle>Stellendetail</SheetTitle>
-              </SheetHeader>
-              <div className="h-full overflow-y-auto">
-                <StellenDetail stelle={detailQuery.data} isLoading={detailQuery.isFetching} />
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
+            nur die Liste, Detail als Sheet von unten. Per JS statt CSS
+            umgeschaltet, damit die Liste nur einmal im DOM steht. */}
+        {isMobile ? (
+          <div>
+            <StellenTable
+              stellen={stellen}
+              isLoading={jobsQuery.isLoading}
+              sort={sort}
+              order={order}
+              onSortChange={onSortChange}
+              selectedId={stelleId}
+              onSelectRow={onSelectRow}
+              variante="karten"
+            />
+            <Sheet
+              open={stelleId !== null}
+              onOpenChange={(offen) => {
+                if (!offen) patchParams({ stelle: null });
+              }}
+            >
+              {/* data-[side=bottom]: nötig, sonst gewinnt h-auto aus sheet.tsx. */}
+              <SheetContent side="bottom" className="data-[side=bottom]:h-[85vh]">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Stellendetail</SheetTitle>
+                </SheetHeader>
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <StellenDetail stelle={detailQuery.data} isLoading={detailQuery.isFetching} />
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+        ) : (
+          <div className="min-h-0 flex-1">
+            <ResizablePanelGroup
+              orientation="horizontal"
+              defaultLayout={defaultLayout}
+              onLayoutChanged={onLayoutChanged}
+            >
+              <ResizablePanel id="liste" defaultSize={60} minSize={35}>
+                <div className="h-full overflow-y-auto pr-2">
+                  <StellenTable
+                    stellen={stellen}
+                    isLoading={jobsQuery.isLoading}
+                    sort={sort}
+                    order={order}
+                    onSortChange={onSortChange}
+                    selectedId={stelleId}
+                    onSelectRow={onSelectRow}
+                    variante="tabelle"
+                  />
+                </div>
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+              <ResizablePanel id="detail" defaultSize={40} minSize={25}>
+                <div className="h-full overflow-y-auto rounded-md border border-border">
+                  <StellenDetail stelle={detailQuery.data} isLoading={detailQuery.isFetching} />
+                </div>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </div>
+        )}
       </div>
     </div>
   );

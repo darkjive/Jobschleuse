@@ -92,7 +92,8 @@ export function StellenDetail({ stelle, isLoading }: Props) {
   return (
     <article className="flex flex-col gap-4 p-4">
       <div>
-        <h2 className="text-lg font-semibold">{stelle.title}</h2>
+        {/* pr-8: Platz für den Schließen-Knopf im mobilen Sheet */}
+        <h2 className="pr-8 text-lg font-semibold">{stelle.title}</h2>
         <p className="text-sm text-muted-foreground">
           {stelle.company} · {stelle.location}
         </p>
