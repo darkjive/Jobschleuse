@@ -398,3 +398,21 @@ def test_rate_braucht_genau_eine_form(env, capsys):
     assert cli.main(["rate"]) == 2
     assert cli.main(["rate", "--stdin", str(job_id)]) == 2
     assert cli.main(["rate", str(job_id), "--score", "50"]) == 2
+
+
+def test_pick_mehrere_ids_json(env, capsys):
+    a, b = seed_many(env / "jobs.db", ["A", "B"])
+    assert cli.main(["pick", str(a), str(b), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"status": "selected", "ids": [a, b]}
+    conn = db.connect(env / "jobs.db")
+    assert {db.get_job(conn, i)["status"] for i in (a, b)} == {"selected"}
+    conn.close()
+
+
+def test_reject_mit_unbekannter_id_aendert_nichts(env, capsys):
+    a = seed(env / "jobs.db")
+    assert cli.main(["reject", str(a), "999"]) == 1
+    assert "999" in capsys.readouterr().err
+    conn = db.connect(env / "jobs.db")
+    assert db.get_job(conn, a)["status"] == "new"
+    conn.close()

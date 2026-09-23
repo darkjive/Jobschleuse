@@ -218,14 +218,19 @@ def _cmd_rate(args: argparse.Namespace) -> int:
     return 0
 
 
-def _set_status(job_id: int, status: str) -> int:
+def _set_status(ids: list[int], status: str, als_json: bool) -> int:
     cfg = load_config()
     conn = db.connect(cfg.db_path)
-    if db.get_job(conn, job_id) is None:
-        print(f"Job {job_id} nicht gefunden.", file=sys.stderr)
+    fehlend = [job_id for job_id in ids if db.get_job(conn, job_id) is None]
+    if fehlend:
+        print(f"Job {', '.join(map(str, fehlend))} nicht gefunden.", file=sys.stderr)
         return 1
-    db.set_status(conn, job_id, status)
-    print(f"Job {job_id} → {status}")
+    db.set_status_bulk(conn, ids, status)
+    if als_json:
+        _json_out({"status": status, "ids": ids})
+    else:
+        for job_id in ids:
+            print(f"Job {job_id} → {status}")
     return 0
 
 
@@ -342,13 +347,15 @@ def main(argv: list[str] | None = None) -> int:
     _json_flag(p_check)
     p_check.set_defaults(func=_cmd_check)
 
-    p_pick = sub.add_parser("pick", help="Stelle auswählen")
-    p_pick.add_argument("id", type=int)
-    p_pick.set_defaults(func=lambda a: _set_status(a.id, "selected"))
+    p_pick = sub.add_parser("pick", help="Stellen auswählen")
+    p_pick.add_argument("ids", type=int, nargs="+", metavar="ID")
+    _json_flag(p_pick)
+    p_pick.set_defaults(func=lambda a: _set_status(a.ids, "selected", a.json))
 
-    p_reject = sub.add_parser("reject", help="Stelle aussortieren")
-    p_reject.add_argument("id", type=int)
-    p_reject.set_defaults(func=lambda a: _set_status(a.id, "rejected"))
+    p_reject = sub.add_parser("reject", help="Stellen aussortieren")
+    p_reject.add_argument("ids", type=int, nargs="+", metavar="ID")
+    _json_flag(p_reject)
+    p_reject.set_defaults(func=lambda a: _set_status(a.ids, "rejected", a.json))
 
     p_gen = sub.add_parser("generate", help="Bewerbung für ausgewählte Stelle erzeugen")
     p_gen.add_argument("id", type=int)

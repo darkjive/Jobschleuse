@@ -49,6 +49,37 @@ Für den PDF-Export muss zusätzlich ein Chromium-Browser installiert sein
 lädt aber selbst keinen nach). Ohne das läuft alles außer `jobs generate`
 normal, der Export bricht mit einer entsprechenden Meldung ab.
 
+## Für Agents
+
+Die CLI ist so gebaut, dass ein Agent (z. B. Claude Code) Stellen ohne
+Rückfragen sichten, gegen `profile.yaml` bewerten und vorsortieren kann.
+Mit `--json` steht auf stdout nur JSON, Meldungen gehen nach stderr.
+Exit-Codes: `0` ok, `1` fachlicher Fehler (unbekannte ID, ungültiger
+Score), `2` Aufruffehler.
+
+    uv run jobs fetch --what "Frontend" --where "Darmstadt" --json
+    # {"fetched": 40, "new": 12, "gone": 3}
+
+    uv run jobs list --unrated --json          # kompakt, ohne Beschreibung
+    uv run jobs show 12 15 --json              # voll, inkl. description_md
+
+    uv run jobs rate 12 --score 85 --reason "Stack passt" --tags python,react
+    uv run jobs rate --stdin --json <<'EOF'
+    {"id": 12, "score": 85, "reason": "Stack passt", "tags": ["python", "react"]}
+    {"id": 15, "score": 20, "reason": "Zeitarbeit, kein Remote"}
+    EOF
+    # {"rated": 2}
+
+    uv run jobs list --min-score 70 --sort score --json
+    uv run jobs pick 12 --json                 # {"status": "selected", "ids": [12]}
+    uv run jobs reject 15 17 18
+
+`list`-Filter: `--status`, `--query`, `--location`, `--unrated`,
+`--min-score`, `--include-gone`, `--sort id|fresh|distance|score`,
+`--limit`. `rate --stdin` prüft alle Zeilen vor dem Schreiben — ist eine
+ungültig, wird nichts gespeichert. `show` kann für Arbeitsagentur-Stellen
+mit kurzer Beschreibung den Volltext nachladen (Netzzugriff).
+
 ## Weboberfläche
 
     uv run jobs serve            # → http://127.0.0.1:8765
