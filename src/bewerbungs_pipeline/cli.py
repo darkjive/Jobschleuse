@@ -69,17 +69,58 @@ def _cmd_check(args: argparse.Namespace) -> int:
     return 0
 
 
+# Kompakte Listenansicht für Agents: ohne Beschreibung, spart Kontext.
+_LIST_FELDER = (
+    "id", "title", "company", "location", "source", "url", "posted_at", "status",
+    "homeoffice", "salary", "distance_km", "score", "tags",
+)
+
+# CLI-Sortschlüssel → (Schlüssel in db._SORT_SPALTEN, feste Richtung).
+_SORTIERUNG = {
+    "id": ("id", "asc"),
+    "fresh": ("frische", "desc"),
+    "distance": ("distance_km", "asc"),
+    "score": ("score", "desc"),
+}
+
+
+def _job_dict(row, felder: tuple[str, ...] | None = None) -> dict:
+    daten = dict(row) if felder is None else {f: row[f] for f in felder}
+    daten["tags"] = json.loads(row["tags"]) if row["tags"] else []
+    return daten
+
+
 def _cmd_list(args: argparse.Namespace) -> int:
+    if args.limit is not None and args.limit < 0:
+        print("--limit darf nicht negativ sein.", file=sys.stderr)
+        return 2
     cfg = load_config()
     conn = db.connect(cfg.db_path)
-    rows = db.list_jobs(conn, status=args.status)
+    sort, order = _SORTIERUNG[args.sort]
+    rows = db.suche_jobs(
+        conn,
+        status=args.status,
+        q=args.query,
+        ort=args.location,
+        mit_verschwundenen=args.include_gone,
+        unbewertet=args.unrated,
+        min_score=args.min_score,
+        sort=sort,
+        order=order,
+    )
+    if args.limit is not None:
+        rows = rows[: args.limit]
+    if args.json:
+        _json_out([_job_dict(row, _LIST_FELDER) for row in rows])
+        return 0
     if not rows:
         print("Keine Stellen gefunden.")
         return 0
-    print(f"{'ID':>4}  {'Status':<9} {'Titel':<40} {'Firma':<30} Ort")
+    print(f"{'ID':>4}  {'Score':>5}  {'Status':<9} {'Titel':<40} {'Firma':<30} Ort")
     for row in rows:
+        score = "" if row["score"] is None else str(row["score"])
         print(
-            f"{row['id']:>4}  {row['status']:<9} "
+            f"{row['id']:>4}  {score:>5}  {row['status']:<9} "
             f"{row['title'][:40]:<40} {row['company'][:30]:<30} {row['location']}"
         )
     return 0
@@ -175,6 +216,16 @@ def main(argv: list[str] | None = None) -> int:
 
     p_list = sub.add_parser("list", help="Stellen anzeigen")
     p_list.add_argument("--status", choices=sorted(db.STATUSES), default=None)
+    p_list.add_argument("--query", default=None, help="Suche in Titel und Firma")
+    p_list.add_argument("--location", default=None, help="Suche im Ort")
+    p_list.add_argument("--unrated", action="store_true", help="nur unbewertete Stellen")
+    p_list.add_argument("--min-score", type=int, default=None, help="Mindest-Score")
+    p_list.add_argument(
+        "--include-gone", action="store_true", help="auch verschwundene Anzeigen"
+    )
+    p_list.add_argument("--sort", choices=list(_SORTIERUNG), default="id")
+    p_list.add_argument("--limit", type=int, default=None, help="maximale Anzahl")
+    _json_flag(p_list)
     p_list.set_defaults(func=_cmd_list)
 
     p_check = sub.add_parser("check", help="Bestand auf verschwundene Anzeigen prüfen")

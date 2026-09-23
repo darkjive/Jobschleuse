@@ -31,6 +31,25 @@ def seed(db_path) -> int:
     return job_id
 
 
+def seed_many(db_path, titel: list[str], company: str = "AC Motoren GmbH") -> list[int]:
+    conn = db.connect(db_path)
+    for i, t in enumerate(titel):
+        db.insert_job(
+            conn,
+            JobItem(
+                title=t,
+                company=company,
+                location="Darmstadt",
+                url=f"https://example.org/job/{i}",
+                source="arbeitsagentur",
+                scraped_at=datetime.now(UTC),
+            ),
+        )
+    ids = [r["id"] for r in db.list_jobs(conn)]
+    conn.close()
+    return ids
+
+
 def test_fetch_inserts_jobs(env, monkeypatch, capsys):
     fake_items = [
         JobItem(
@@ -181,3 +200,86 @@ def test_check_json(env, monkeypatch, capsys):
     monkeypatch.setattr(cli.arbeitsagentur, "check_alive", lambda refnrs: {"ref-weg"})
     assert cli.main(["check", "--json"]) == 0
     assert json.loads(capsys.readouterr().out) == {"checked": 1, "gone": 1}
+
+
+LIST_FELDER = {
+    "id", "title", "company", "location", "source", "url", "posted_at", "status",
+    "homeoffice", "salary", "distance_km", "score", "tags",
+}
+
+
+def test_list_json_kompakte_felder(env, capsys):
+    seed(env / "jobs.db")
+    assert cli.main(["list", "--json"]) == 0
+    daten = json.loads(capsys.readouterr().out)
+    assert len(daten) == 1
+    assert set(daten[0]) == LIST_FELDER
+    assert daten[0]["tags"] == []
+    assert daten[0]["score"] is None
+
+
+def test_list_json_leer(env, capsys):
+    seed(env / "jobs.db")
+    assert cli.main(["list", "--json", "--status", "selected"]) == 0
+    assert json.loads(capsys.readouterr().out) == []
+
+
+def test_list_json_umlaute_roh(env, capsys):
+    seed_many(env / "jobs.db", ["Dev"], company="Müller GmbH")
+    cli.main(["list", "--json"])
+    out = capsys.readouterr().out
+    assert "Müller" in out
+    assert json.loads(out)[0]["company"] == "Müller GmbH"
+
+
+def test_list_blendet_verschwundene_standardmaessig_aus(env, capsys):
+    job_id = seed(env / "jobs.db")
+    conn = db.connect(env / "jobs.db")
+    conn.execute(
+        "UPDATE jobs SET gone_at = '2026-09-01T00:00:00+00:00' WHERE id = ?", (job_id,)
+    )
+    conn.commit()
+    conn.close()
+    cli.main(["list", "--json"])
+    assert json.loads(capsys.readouterr().out) == []
+    cli.main(["list", "--json", "--include-gone"])
+    assert len(json.loads(capsys.readouterr().out)) == 1
+
+
+def test_list_filter_und_score_sortierung(env, capsys):
+    a, b, c = seed_many(env / "jobs.db", ["Python Dev", "React Dev", "Koch"])
+    conn = db.connect(env / "jobs.db")
+    db.set_rating(conn, a, 60, "ok", ["python"])
+    db.set_rating(conn, b, 90, "super", ["react"])
+    conn.close()
+
+    cli.main(["list", "--json", "--sort", "score"])
+    assert [j["id"] for j in json.loads(capsys.readouterr().out)] == [b, a, c]
+
+    cli.main(["list", "--json", "--min-score", "70"])
+    daten = json.loads(capsys.readouterr().out)
+    assert [j["id"] for j in daten] == [b]
+    assert daten[0]["tags"] == ["react"]
+
+    cli.main(["list", "--json", "--unrated"])
+    assert [j["id"] for j in json.loads(capsys.readouterr().out)] == [c]
+
+    cli.main(["list", "--json", "--query", "dev", "--limit", "1"])
+    assert [j["id"] for j in json.loads(capsys.readouterr().out)] == [a]
+
+
+def test_list_negatives_limit_ist_aufruffehler(env, capsys):
+    seed(env / "jobs.db")
+    assert cli.main(["list", "--limit", "-1"]) == 2
+    assert capsys.readouterr().out == ""
+
+
+def test_list_zeigt_score_spalte(env, capsys):
+    job_id = seed(env / "jobs.db")
+    conn = db.connect(env / "jobs.db")
+    db.set_rating(conn, job_id, 77, "", [])
+    conn.close()
+    cli.main(["list"])
+    out = capsys.readouterr().out
+    assert "Score" in out
+    assert "77" in out
