@@ -143,7 +143,7 @@ def make_item(**overrides):
 
 def test_enrich_uebernimmt_detailfelder(monkeypatch):
     nutzlast = json.loads(DETAIL_FIXTURE.read_text())
-    monkeypatch.setattr(arbeitsagentur, "fetch_details", lambda refnr: nutzlast)
+    monkeypatch.setattr(arbeitsagentur, "fetch_details", lambda refnr, client=None: nutzlast)
 
     item = arbeitsagentur.enrich([make_item()])[0]
     assert item.source_partner == "XING GmbH & Co. KG"
@@ -155,12 +155,12 @@ def test_enrich_uebernimmt_detailfelder(monkeypatch):
 
 
 def test_enrich_verwirft_verschwundene(monkeypatch):
-    monkeypatch.setattr(arbeitsagentur, "fetch_details", lambda refnr: None)
+    monkeypatch.setattr(arbeitsagentur, "fetch_details", lambda refnr, client=None: None)
     assert arbeitsagentur.enrich([make_item()]) == []
 
 
 def test_enrich_behaelt_stelle_bei_netzfehler(monkeypatch):
-    def kaputt(refnr):
+    def kaputt(refnr, client=None):
         raise httpx.ConnectError("kein Netz")
 
     monkeypatch.setattr(arbeitsagentur, "fetch_details", kaputt)
@@ -171,7 +171,7 @@ def test_enrich_behaelt_stelle_bei_netzfehler(monkeypatch):
 
 
 def test_enrich_ohne_referenznummer(monkeypatch):
-    def darf_nicht_aufgerufen_werden(refnr):
+    def darf_nicht_aufgerufen_werden(refnr, client=None):
         raise AssertionError("ohne source_ref darf kein Abruf laufen")
 
     monkeypatch.setattr(arbeitsagentur, "fetch_details", darf_nicht_aufgerufen_werden)
@@ -179,7 +179,7 @@ def test_enrich_ohne_referenznummer(monkeypatch):
 
 
 def test_check_alive_meldet_nur_404(monkeypatch):
-    def antwort(refnr):
+    def antwort(refnr, client=None):
         if refnr == "weg-1":
             return None
         if refnr == "kaputt-1":
@@ -188,6 +188,28 @@ def test_check_alive_meldet_nur_404(monkeypatch):
 
     monkeypatch.setattr(arbeitsagentur, "fetch_details", antwort)
     assert arbeitsagentur.check_alive(["lebt-1", "weg-1", "kaputt-1"]) == {"weg-1"}
+
+
+def test_detailabrufe_teilen_einen_client(monkeypatch):
+    """Hunderte Detail-Abrufe pro Suche: ein Client je Lauf, nicht je Abruf —
+    sonst kostet jeder Abruf einen eigenen Verbindungsaufbau."""
+    erzeugt = []
+    transport = httpx.MockTransport(lambda request: httpx.Response(404))
+    original = httpx.Client
+
+    def zaehlender_client(*a, **kw):
+        erzeugt.append(1)
+        return original(*a, transport=transport, **kw)
+
+    monkeypatch.setattr(httpx, "Client", zaehlender_client)
+    refnrs = [f"ref-{i}" for i in range(20)]
+    assert arbeitsagentur.check_alive(refnrs) == set(refnrs)
+    assert len(erzeugt) == 1
+
+    erzeugt.clear()
+    items = [make_item(source_ref=r, url=f"https://example.org/{r}") for r in refnrs]
+    assert arbeitsagentur.enrich(items) == []
+    assert len(erzeugt) == 1
 
 
 def test_fetch_jobs_reicht_suchparameter_durch(monkeypatch):

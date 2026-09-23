@@ -1,5 +1,4 @@
 import sqlite3
-from collections import Counter
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -10,9 +9,11 @@ from ..app import get_conn
 from ..schemas import (
     BulkStatusUpdate,
     FetchRequest,
+    JobListOut,
     JobOut,
     StatusUpdate,
     TaskRef,
+    job_list_out,
     job_out,
 )
 
@@ -29,7 +30,7 @@ def liste(
     order: str = "desc",
     limit: int | None = None,
     conn: sqlite3.Connection = Depends(get_conn),
-) -> list[JobOut]:
+) -> list[JobListOut]:
     stellen = db.suche_jobs(
         conn,
         status=status or None,
@@ -38,10 +39,9 @@ def liste(
         mit_verschwundenen=verschwunden,
         sort=sort,
         order=order,
+        limit=limit,
     )
-    if limit is not None:
-        stellen = stellen[:limit]
-    return [job_out(row) for row in stellen]
+    return [job_list_out(row) for row in stellen]
 
 
 # Muss vor `/jobs/{job_id}` stehen, sonst matcht "anzahl" als job_id.
@@ -53,13 +53,9 @@ def anzahl(
     conn: sqlite3.Connection = Depends(get_conn),
 ) -> dict[str, int]:
     """Stellen pro Status unter denselben Filtern wie die Liste (ohne Status)."""
-    zaehler = Counter(
-        row["status"]
-        for row in db.suche_jobs(
-            conn, q=q or None, ort=ort or None, mit_verschwundenen=verschwunden
-        )
+    return db.zaehle_pro_status(
+        conn, q=q or None, ort=ort or None, mit_verschwundenen=verschwunden
     )
-    return {status: zaehler[status] for status in db.STATUSES}
 
 
 @router.get("/jobs/{job_id}")

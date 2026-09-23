@@ -13,7 +13,10 @@ from pydantic import BaseModel
 Status = Literal["new", "selected", "rejected"]
 
 
-class JobOut(BaseModel):
+class JobListOut(BaseModel):
+    """Stellenzeile für Listen — ohne Anzeigentext, der macht den Großteil
+    der Datenmenge aus und wird erst im Detail gebraucht."""
+
     id: int
     title: str
     company: str
@@ -23,7 +26,6 @@ class JobOut(BaseModel):
     status: str
     source_ref: str | None = None
     posted_at: date | None = None
-    description_md: str
     job_kind: str | None = None
     employer_kind: str | None = None
     source_partner: str | None = None
@@ -40,7 +42,15 @@ class JobOut(BaseModel):
     education: str | None = None
     gone_at: datetime | None = None
     scraped_at: datetime
+
+
+class JobOut(JobListOut):
+    description_md: str
     application_id: int | None = None
+
+
+def job_list_out(row) -> JobListOut:
+    return JobListOut.model_validate(dict(row))
 
 
 def job_out(row, application_id: int | None = None) -> JobOut:

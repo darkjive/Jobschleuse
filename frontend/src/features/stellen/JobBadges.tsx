@@ -1,10 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { employerWarnung, formatAlter } from "@/lib/format";
-import type { JobOut } from "@/types/api";
+import type { JobListItem } from "@/types/api";
 
 /** Kompakte Kennzeichen für Tabellenzeile/Mobil-Karte — Reihenfolge fest:
  * Herkunft, Warnzeichen, Pluspunkte, Eckdaten (wie _stellenliste.html). */
-export function JobBadges({ stelle }: { stelle: JobOut }) {
+export function JobBadges({ stelle }: { stelle: JobListItem }) {
   const quelle = stelle.source_partner || stelle.external_host;
   const warnung = employerWarnung(stelle.employer_kind);
   const ausbildung = stelle.job_kind && stelle.job_kind !== "ARBEIT";

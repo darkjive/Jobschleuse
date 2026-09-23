@@ -125,23 +125,28 @@ def fetch_jobs(
     return enrich(items)
 
 
-def fetch_details(refnr: str) -> dict | None:
+def fetch_details(refnr: str, client: httpx.Client | None = None) -> dict | None:
     """Vollständiges Detail-Payload; ``None``, wenn die Anzeige weg ist.
 
     HTTP 404 heisst bei dieser Schnittstelle zuverlässig „nicht mehr
     vorhanden". Alle anderen Fehler — Zeitüberschreitung, Serverfehler,
     Verbindungsabbruch — werden geworfen und dürfen nicht als „weg"
     gedeutet werden.
+
+    `client` erlaubt Massenabrufen, Verbindungen wiederzuverwenden; ohne
+    ihn wird für den einen Abruf ein eigener geöffnet.
     """
+    if client is None:
+        with httpx.Client() as eigener:
+            return fetch_details(refnr, eigener)
     encoded = base64.b64encode(refnr.encode()).decode()
-    with httpx.Client() as client:
-        response = client.get(
-            f"{BASE_URL}/pc/v4/jobdetails/{encoded}", headers=HEADERS, timeout=TIMEOUT
-        )
-        if response.status_code == 404:
-            return None
-        response.raise_for_status()
-        return response.json()
+    response = client.get(
+        f"{BASE_URL}/pc/v4/jobdetails/{encoded}", headers=HEADERS, timeout=TIMEOUT
+    )
+    if response.status_code == 404:
+        return None
+    response.raise_for_status()
+    return response.json()
 
 
 def _adresse_strasse(payload: dict) -> str | None:
@@ -154,12 +159,12 @@ def _adresse_strasse(payload: dict) -> str | None:
     return f"{strasse} {hausnummer}".strip()
 
 
-def _anreichern(item: JobItem) -> JobItem | None:
+def _anreichern(item: JobItem, client: httpx.Client) -> JobItem | None:
     """Ein Detail-Abruf. ``None`` heisst: Anzeige ist weg, Treffer verwerfen."""
     if not item.source_ref:
         return item
     try:
-        payload = fetch_details(item.source_ref)
+        payload = fetch_details(item.source_ref, client)
     except Exception:
         # Netzfehler: Treffer behalten, nur ohne Zusatzangaben. Ein
         # Verbindungsproblem darf keine Stelle verschwinden lassen.
@@ -184,8 +189,9 @@ def enrich(items: list[JobItem]) -> list[JobItem]:
     """Reichert alle Treffer parallel an und wirft verschwundene weg."""
     if not items:
         return []
-    with ThreadPoolExecutor(max_workers=PARALLEL) as pool:
-        ergebnisse = pool.map(_anreichern, items)
+    # httpx.Client ist thread-sicher; alle Arbeiter teilen sich seinen Pool.
+    with httpx.Client() as client, ThreadPoolExecutor(max_workers=PARALLEL) as pool:
+        ergebnisse = list(pool.map(lambda item: _anreichern(item, client), items))
     return [item for item in ergebnisse if item is not None]
 
 
@@ -198,11 +204,12 @@ def check_alive(refnrs: list[str]) -> set[str]:
     if not refnrs:
         return set()
 
-    def pruefen(refnr: str) -> str | None:
-        try:
-            return refnr if fetch_details(refnr) is None else None
-        except Exception:
-            return None
+    with httpx.Client() as client, ThreadPoolExecutor(max_workers=PARALLEL) as pool:
 
-    with ThreadPoolExecutor(max_workers=PARALLEL) as pool:
+        def pruefen(refnr: str) -> str | None:
+            try:
+                return refnr if fetch_details(refnr, client) is None else None
+            except Exception:
+                return None
+
         return {refnr for refnr in pool.map(pruefen, refnrs) if refnr}

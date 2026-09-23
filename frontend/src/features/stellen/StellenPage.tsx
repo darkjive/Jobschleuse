@@ -19,7 +19,7 @@ import { usePersistedLayout } from "@/hooks/usePersistedLayout";
 import { useSetHeaderActions } from "@/lib/header-actions";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { JobOut, SortOrder, SortSpalte } from "@/types/api";
+import type { JobListItem, SortOrder, SortSpalte } from "@/types/api";
 
 export function StellenPage() {
   const [params, setParams] = useSearchParams();
@@ -113,7 +113,7 @@ export function StellenPage() {
   const { defaultLayout, onLayoutChanged } = usePersistedLayout("stellen-split");
   const isMobile = useMediaQuery("(max-width: 767px)");
 
-  function onSelectRow(job: JobOut) {
+  function onSelectRow(job: JobListItem) {
     patchParams({ stelle: String(job.id) });
   }
 

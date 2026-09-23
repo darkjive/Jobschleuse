@@ -1,6 +1,7 @@
 import type {
   ApplicationDetail,
   FetchRequest,
+  JobListItem,
   JobOut,
   JobsQuery,
   SlotOut,
@@ -64,7 +65,7 @@ function query(params: object): string {
 export const api = {
   jobs: {
     liste: (params: JobsQuery = {}) =>
-      anfrage<JobOut[]>(`/api/jobs${query(params)}`),
+      anfrage<JobListItem[]>(`/api/jobs${query(params)}`),
     anzahl: (params: Pick<JobsQuery, "q" | "ort" | "verschwunden"> = {}) =>
       anfrage<Record<Status, number>>(`/api/jobs/anzahl${query(params)}`),
     detail: (id: number) => anfrage<JobOut>(`/api/jobs/${id}`),

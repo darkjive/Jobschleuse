@@ -91,6 +91,18 @@ def test_liste_begrenzt_mit_limit(tmp_path):
     assert len(antwort.json()) == 1
 
 
+def test_liste_ohne_beschreibung(tmp_path):
+    """Die Liste braucht den Anzeigentext nicht — er macht den Großteil der
+    Antwort aus. Das Detail liefert ihn weiterhin."""
+    cfg = make_cfg(tmp_path)
+    ids = seed(cfg)
+    client = TestClient(create_app(cfg))
+    stellen = client.get("/api/jobs").json()
+    assert all("description_md" not in job for job in stellen)
+    detail = client.get(f"/api/jobs/{ids['Frontend Entwickler (m/w/d)']}").json()
+    assert detail["description_md"]
+
+
 def test_anzahl_zaehlt_pro_status_mit_filtern(tmp_path):
     cfg = make_cfg(tmp_path)
     ids = seed(cfg)

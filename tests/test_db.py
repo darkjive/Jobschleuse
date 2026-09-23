@@ -426,3 +426,18 @@ def test_suche_jobs_sortiert_nach_score_unbewertete_zuletzt(conn):
     db.set_rating(conn, 3, 90, "", [])
     rows = db.suche_jobs(conn, sort="score", order="desc")
     assert [r["id"] for r in rows] == [3, 1, 2]
+
+
+def test_suche_jobs_begrenzt_mit_limit(conn):
+    for titel in ("A", "B", "C"):
+        db.insert_job(conn, make_item(title=titel, url=f"https://example.org/{titel}"))
+    assert [r["title"] for r in db.suche_jobs(conn, sort="title", order="asc", limit=2)] == ["A", "B"]
+
+
+def test_zaehle_pro_status(conn):
+    for titel in ("Alpha", "Beta", "Gamma"):
+        db.insert_job(conn, make_item(title=titel, url=f"https://example.org/{titel}"))
+    ids = [r["id"] for r in db.list_jobs(conn)]
+    db.set_status(conn, ids[0], "selected")
+    assert db.zaehle_pro_status(conn) == {"new": 2, "selected": 1, "rejected": 0}
+    assert db.zaehle_pro_status(conn, q="gamma") == {"new": 1, "selected": 0, "rejected": 0}

@@ -4,7 +4,8 @@
 
 export type Status = "new" | "selected" | "rejected";
 
-export interface JobOut {
+/** Listenzeile — ohne Anzeigentext (siehe JobListOut in schemas.py). */
+export interface JobListItem {
   id: number;
   title: string;
   company: string;
@@ -14,7 +15,6 @@ export interface JobOut {
   status: Status;
   source_ref: string | null;
   posted_at: string | null;
-  description_md: string;
   job_kind: string | null;
   employer_kind: string | null;
   source_partner: string | null;
@@ -31,6 +31,10 @@ export interface JobOut {
   education: string | null;
   gone_at: string | null;
   scraped_at: string;
+}
+
+export interface JobOut extends JobListItem {
+  description_md: string;
   application_id: number | null;
 }
 

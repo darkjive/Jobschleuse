@@ -244,30 +244,16 @@ def set_status_bulk(conn: sqlite3.Connection, job_ids: list[int], status: str) -
     return cur.rowcount
 
 
-def suche_jobs(
-    conn: sqlite3.Connection,
-    status: str | None = None,
-    q: str | None = None,
-    ort: str | None = None,
-    mit_verschwundenen: bool = False,
-    unbewertet: bool = False,
-    min_score: int | None = None,
-    sort: str = "id",
-    order: str = "desc",
-) -> list[sqlite3.Row]:
-    """Stellenliste mit optionalen Filtern.
-
-    `q` sucht in Titel und Firma, `ort` im Ort — beides ohne
-    Beachtung der Groß-/Kleinschreibung. Stellen, deren Anzeige bei der
-    Quelle verschwunden ist, bleiben aussen vor, solange
-    `mit_verschwundenen` nicht gesetzt ist. `unbewertet` beschränkt auf
-    Stellen ohne Score, `min_score` auf Stellen mit mindestens diesem Score.
-    `sort` läuft über eine feste
-    Spalten-Whitelist; unbekannte Werte fallen still auf `id` zurück.
-    """
-    spalte = _SORT_SPALTEN.get(sort, "id")
-    richtung = "ASC" if order == "asc" else "DESC"
-    sql = "SELECT * FROM jobs WHERE 1=1"
+def _filter_sql(
+    status: str | None,
+    q: str | None,
+    ort: str | None,
+    mit_verschwundenen: bool,
+    unbewertet: bool,
+    min_score: int | None,
+) -> tuple[str, list[str | int]]:
+    """WHERE-Klausel und Parameter der Stellenfilter (siehe `suche_jobs`)."""
+    sql = " WHERE 1=1"
     werte: list[str | int] = []
     if not mit_verschwundenen:
         sql += " AND gone_at IS NULL"
@@ -285,8 +271,55 @@ def suche_jobs(
     if min_score is not None:
         sql += " AND score >= ?"
         werte.append(min_score)
-    sql += f" ORDER BY {spalte} {richtung}"
+    return sql, werte
+
+
+def suche_jobs(
+    conn: sqlite3.Connection,
+    status: str | None = None,
+    q: str | None = None,
+    ort: str | None = None,
+    mit_verschwundenen: bool = False,
+    unbewertet: bool = False,
+    min_score: int | None = None,
+    sort: str = "id",
+    order: str = "desc",
+    limit: int | None = None,
+) -> list[sqlite3.Row]:
+    """Stellenliste mit optionalen Filtern.
+
+    `q` sucht in Titel und Firma, `ort` im Ort — beides ohne
+    Beachtung der Groß-/Kleinschreibung. Stellen, deren Anzeige bei der
+    Quelle verschwunden ist, bleiben aussen vor, solange
+    `mit_verschwundenen` nicht gesetzt ist. `unbewertet` beschränkt auf
+    Stellen ohne Score, `min_score` auf Stellen mit mindestens diesem Score.
+    `sort` läuft über eine feste
+    Spalten-Whitelist; unbekannte Werte fallen still auf `id` zurück.
+    """
+    spalte = _SORT_SPALTEN.get(sort, "id")
+    richtung = "ASC" if order == "asc" else "DESC"
+    where, werte = _filter_sql(status, q, ort, mit_verschwundenen, unbewertet, min_score)
+    sql = f"SELECT * FROM jobs{where} ORDER BY {spalte} {richtung}"
+    if limit is not None:
+        sql += " LIMIT ?"
+        werte.append(limit)
     return conn.execute(sql, werte).fetchall()
+
+
+def zaehle_pro_status(
+    conn: sqlite3.Connection,
+    q: str | None = None,
+    ort: str | None = None,
+    mit_verschwundenen: bool = False,
+) -> dict[str, int]:
+    """Stellen je Status unter denselben Filtern wie `suche_jobs`."""
+    where, werte = _filter_sql(None, q, ort, mit_verschwundenen, False, None)
+    zeilen = conn.execute(
+        f"SELECT status, COUNT(*) FROM jobs{where} GROUP BY status", werte
+    ).fetchall()
+    zaehler = dict.fromkeys(STATUSES, 0)
+    zaehler.update({status: anzahl for status, anzahl in zeilen})
+    return zaehler
 
 
 def offene_referenzen(conn: sqlite3.Connection) -> list[str]:
