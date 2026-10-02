@@ -10,9 +10,7 @@ function Header() {
     <header className="flex flex-col gap-4 border-b border-border px-6 py-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M3 4h18l-7 8v7l-4 2v-9L3 4z" className="fill-primary" />
-          </svg>
+          <img src="/favicon.svg" width={32} height={32} alt="" />
           <div>
             <h1 className="text-lg leading-tight font-semibold">Jobschleuse</h1>
             <p className="text-sm text-muted-foreground">Stellen rein, Bewerbungen raus.</p>
