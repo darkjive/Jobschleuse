@@ -9,12 +9,12 @@ function Header() {
   return (
     <header className="border-b border-border bg-card">
       <div className="ds-header justify-between border-b-0 bg-transparent">
-        <div className="flex items-center gap-3">
+        <div className="ds-brand">
           <img src="/favicon.svg" width={28} height={28} alt="" />
           <h1>Jobschleuse</h1>
-          <span className="ds-muted hidden sm:inline">Stellen rein, Bewerbungen raus.</span>
+          <span className="ds-muted ds-hide-mobile text-sm font-normal">Stellen rein, Bewerbungen raus.</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="ds-header-actions">
           <Button variant="outline" size="icon" asChild>
             <Link to="/profil" aria-label="Profil" title="Profil">
               <UserRound />
