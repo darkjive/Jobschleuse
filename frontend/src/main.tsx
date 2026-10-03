@@ -9,6 +9,7 @@ import { BewerbungPage } from "@/features/bewerbung/BewerbungPage";
 import { ProfilPage } from "@/features/profil/ProfilPage";
 import { StellenPage } from "@/features/stellen/StellenPage";
 import { Layout } from "./App.tsx";
+import "../../../Designsystem/fonts.css";
 import "./index.css";
 
 const queryClient = new QueryClient({
