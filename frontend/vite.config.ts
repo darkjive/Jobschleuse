@@ -11,6 +11,7 @@ export default defineConfig({
     },
   },
   server: {
+    fs: { allow: ['.', '../../Designsystem'] },
     proxy: {
       '/api': 'http://127.0.0.1:8765',
       '/applications': 'http://127.0.0.1:8765',

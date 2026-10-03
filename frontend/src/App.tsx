@@ -7,14 +7,12 @@ import { HeaderActionsOutlet, HeaderActionsProvider } from "@/lib/header-actions
 
 function Header() {
   return (
-    <header className="flex flex-col gap-4 border-b border-border px-6 py-4">
-      <div className="flex items-center justify-between gap-4">
+    <header className="border-b border-border bg-card">
+      <div className="ds-header justify-between border-b-0 bg-transparent">
         <div className="flex items-center gap-3">
-          <img src="/favicon.svg" width={32} height={32} alt="" />
-          <div>
-            <h1 className="text-lg leading-tight font-semibold">Jobschleuse</h1>
-            <p className="text-sm text-muted-foreground">Stellen rein, Bewerbungen raus.</p>
-          </div>
+          <img src="/favicon.svg" width={28} height={28} alt="" />
+          <h1>Jobschleuse</h1>
+          <span className="ds-muted hidden sm:inline">Stellen rein, Bewerbungen raus.</span>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" asChild>
@@ -25,7 +23,7 @@ function Header() {
           <ThemeToggle />
         </div>
       </div>
-      <HeaderActionsOutlet className="flex flex-wrap items-center gap-2" />
+      <HeaderActionsOutlet className="flex flex-wrap items-center gap-2 px-[var(--page-inset)] pb-[var(--space-3)] empty:hidden" />
     </header>
   );
 }
@@ -33,9 +31,9 @@ function Header() {
 export function Layout() {
   return (
     <HeaderActionsProvider>
-      <div className="mx-auto flex h-svh max-w-6xl flex-col">
+      <div className="flex h-svh flex-col">
         <Header />
-        <main className="flex-1 overflow-hidden p-6">
+        <main className="mx-auto w-full max-w-[var(--content-max)] flex-1 overflow-hidden p-[var(--page-pad)]">
           <Outlet />
         </main>
         <CommandPalette />
