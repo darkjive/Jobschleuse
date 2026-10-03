@@ -165,7 +165,7 @@ export function StellenTable({
       {stellen.length === 0 ? (
         <p className="text-sm text-muted-foreground">Keine Stellen gefunden.</p>
       ) : variante === "tabelle" ? (
-        <div className="overflow-x-auto rounded-md border border-border">
+        <div className="rounded-md border border-border [&_[data-slot=table-container]]:overflow-visible">
           <Table>
             <TableHeader
               className="sticky z-10 bg-background"
