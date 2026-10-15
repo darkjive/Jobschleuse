@@ -24,7 +24,7 @@ class FakeClient:
 
 def make_cfg(tmp_path) -> Config:
     profile = tmp_path / "profile.yaml"
-    profile.write_text("name: Alain Ritter\nemail: cosmwave@gmail.com\n")
+    profile.write_text("name: Alain Ritter\nemail: test@example.com\n")
     return Config(
         db_path=tmp_path / "jobs.db",
         out_dir=tmp_path / "out",
