@@ -17,7 +17,7 @@ JOB = JobItem(
     scraped_at=datetime.now(UTC),
 )
 SLOTS = {"firma": "AC Motoren GmbH", "einstieg": "Mit großem Interesse …"}
-PROFILE = {"name": "Alain Ritter", "email": "cosmwave@gmail.com"}
+PROFILE = {"name": "Alain Ritter", "email": "test@example.com"}
 
 
 class FakeClient:

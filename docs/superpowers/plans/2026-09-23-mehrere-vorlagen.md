@@ -1403,7 +1403,7 @@ from vorlagen_hilfe import cfg_mit_vorlage, vorlage_anlegen
 
 
 def make_cfg(tmp_path) -> Config:
-    return cfg_mit_vorlage(tmp_path, profil="name: Alain Ritter\nemail: cosmwave@gmail.com\n")
+    return cfg_mit_vorlage(tmp_path, profil="name: Alain Ritter\nemail: test@example.com\n")
 ```
 
 Sonderfälle:
