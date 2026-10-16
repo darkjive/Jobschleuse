@@ -1,6 +1,7 @@
 """Schutz der Weboberfläche gegen fremde Webseiten im selben Browser
 (CSRF, DNS-Rebinding) und gegen unpassende Uploads."""
 
+import dataclasses
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -65,6 +66,14 @@ def test_nur_loopback_lehnt_fremden_host_ab(tmp_path):
     assert client.get("/api/jobs", headers={"host": "boese.example:8765"}).status_code == 403
     assert client.get("/api/jobs", headers={"host": "127.0.0.1:8765"}).status_code == 200
     assert client.get("/api/jobs", headers={"host": "localhost:8765"}).status_code == 200
+
+
+def test_nur_loopback_nimmt_freigegebenen_host_an(tmp_path):
+    """Hinter der Pforte kommt der Tailscale-Name als Host an."""
+    cfg = dataclasses.replace(make_cfg(tmp_path), allowed_hosts=frozenset({"sirius.example.ts.net"}))
+    client = TestClient(create_app(cfg, nur_loopback=True))
+    assert client.get("/api/jobs", headers={"host": "sirius.example.ts.net:8445"}).status_code == 200
+    assert client.get("/api/jobs", headers={"host": "boese.example:8765"}).status_code == 403
 
 
 def test_upload_nimmt_passendes_bild(tmp_path):

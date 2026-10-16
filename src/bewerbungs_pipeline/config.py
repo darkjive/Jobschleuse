@@ -17,6 +17,8 @@ class Config:
     llm_api_key: str
     llm_model: str
     web_token: str = ""
+    # Extra host names accepted in loopback mode, e.g. the Tailscale name behind Pforte.
+    allowed_hosts: frozenset[str] = frozenset()
 
 
 def load_config() -> Config:
@@ -29,4 +31,7 @@ def load_config() -> Config:
         llm_api_key=os.getenv("LLM_API_KEY", ""),
         llm_model=os.getenv("LLM_MODEL", ""),
         web_token=os.getenv("JOBS_WEB_TOKEN", ""),
+        allowed_hosts=frozenset(
+            h.strip() for h in os.getenv("JOBS_ALLOWED_HOSTS", "").split(",") if h.strip()
+        ),
     )
