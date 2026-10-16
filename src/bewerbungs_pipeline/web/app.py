@@ -55,7 +55,7 @@ def create_app(cfg: Config, nur_loopback: bool = False) -> FastAPI:
         „same origin“, ihr `Host`-Header nennt aber weiter ihren Namen.
         """
         host = request.headers.get("host", "")
-        if nur_loopback and _hostname(host) not in _LOOPBACK_NAMEN:
+        if nur_loopback and _hostname(host) not in _LOOPBACK_NAMEN | cfg.allowed_hosts:
             return JSONResponse({"error": "host not allowed"}, status_code=403)
         origin = request.headers.get("origin")
         if (
