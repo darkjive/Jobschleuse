@@ -12,7 +12,7 @@ dependencies = [
     "fastapi>=0.141.1",
     "uvicorn>=0.52.1",
     "playwright>=1.62.0",
-    "python-jobspy>=1.1.82",
+    "python-jobspy>=1.4.0",
     "python-multipart>=0.0.32",
 ]
 
