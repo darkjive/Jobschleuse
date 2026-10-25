@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -101,11 +101,12 @@ export function SlotCard({ appId, name, daten, onGeaendert }: Props) {
               <Button
                 size="icon-sm"
                 variant="ghost"
+                className={regeneriertLaeuft ? "busy" : undefined}
                 disabled={regeneriertLaeuft}
                 aria-label={`${slotLabel(name)} neu erzeugen`}
                 onClick={() => regenMutation.mutate()}
               >
-                <RefreshCw className={cn(regeneriertLaeuft && "animate-spin")} />
+                <RefreshCw />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Neu erzeugen</TooltipContent>

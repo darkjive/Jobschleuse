@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, SearchX } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -163,7 +163,10 @@ export function StellenTable({
       </div>
 
       {stellen.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Keine Stellen gefunden.</p>
+        <div className="ds-empty">
+          <SearchX className="ds-icon" />
+          <p>Keine Stellen gefunden.</p>
+        </div>
       ) : variante === "tabelle" ? (
         <div className="rounded-md border border-border [&_[data-slot=table-container]]:overflow-visible">
           <Table>

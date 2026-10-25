@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { api } from "@/lib/api";
@@ -33,10 +33,11 @@ function AssetUpload({ art, titel, hinweis, akzeptiert }: AssetUploadProps) {
         <Button
           size="sm"
           variant="outline"
+          className={uploadMutation.isPending ? "busy" : undefined}
           disabled={uploadMutation.isPending}
           onClick={() => inputRef.current?.click()}
         >
-          {uploadMutation.isPending ? "lädt hoch…" : "Bild wählen"}
+          Bild wählen
         </Button>
         <input
           ref={inputRef}

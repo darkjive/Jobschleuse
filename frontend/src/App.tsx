@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { UserRound } from "lucide-react";
 import { Link, Outlet } from "react-router";
 import { CommandPalette } from "@/components/command-palette";
@@ -6,15 +7,24 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { HeaderActionsOutlet, HeaderActionsProvider } from "@/lib/header-actions";
 
 function Header() {
+  // Designsystem-Soundschalter (/ds/sounds.js) in die Header-Aktionen einhängen
+  const soundRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const host = soundRef.current;
+    if (host) window.dsSound?.mountToggle(host);
+    return () => host?.replaceChildren();
+  }, []);
+
   return (
-    <header className="border-b border-border bg-card">
-      <div className="ds-header justify-between border-b-0 bg-transparent">
+    <>
+      <header className="ds-header">
         <div className="ds-brand">
           <img src="/favicon.svg" width={28} height={28} alt="" />
           <h1>Jobschleuse</h1>
           <span className="ds-muted ds-hide-mobile text-sm font-normal">Stellen rein, Bewerbungen raus.</span>
         </div>
         <div className="ds-header-actions">
+          <span ref={soundRef} className="contents" />
           <Button variant="outline" size="icon" asChild>
             <Link to="/profil" aria-label="Profil" title="Profil">
               <UserRound />
@@ -22,9 +32,9 @@ function Header() {
           </Button>
           <ThemeToggle />
         </div>
-      </div>
-      <HeaderActionsOutlet className="flex flex-wrap items-center gap-2 px-[var(--page-inset)] pb-[var(--space-3)] empty:hidden" />
-    </header>
+      </header>
+      <HeaderActionsOutlet className="flex flex-wrap items-center gap-2 border-b border-border bg-card px-[var(--page-inset)] py-[var(--space-2)] empty:hidden" />
+    </>
   );
 }
 

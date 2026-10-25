@@ -16,6 +16,7 @@ export default defineConfig({
       '/api': 'http://127.0.0.1:8765',
       '/applications': 'http://127.0.0.1:8765',
       '/template-assets': 'http://127.0.0.1:8765',
+      '/ds': 'http://127.0.0.1:8765',
     },
   },
 })

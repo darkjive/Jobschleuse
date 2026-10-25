@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is([data-theme="dark"] *));
 
 /* Design-System: Tokens, Basis, Komponenten und Tailwind/shadcn-Mapping zentral
    in ../../Designsystem (Fonts werden in main.tsx importiert). */
@@ -26,4 +26,17 @@
   html {
     @apply font-sans;
   }
+}
+
+/* sonner legt den Schließen-Knopf als Eckknopf an; im .ds-toast sitzt er wie im Styleguide rechts in der Zeile. */
+[data-sonner-toast].ds-toast [data-close-button] {
+  position: static;
+  order: 3;
+  transform: none;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  margin-left: auto;
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
 }

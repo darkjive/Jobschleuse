@@ -17,6 +17,10 @@ HIER = Path(__file__).parent
 # Verzeichnis wird committed — kein Node zur Laufzeit nötig (siehe Spec).
 FRONTEND_DIST = HIER.parent.parent.parent / "frontend" / "dist"
 
+# Laufzeitdateien des Designsystems (sounds.js lädt Töne und Icon-Sprite nach); nur diese, nicht das ganze
+# Checkout (enthält .git). Fehlt der Ordner, bleibt die Seite ohne Sounds.
+DESIGNSYSTEM = HIER.parent.parent.parent.parent / "Designsystem"
+
 _SICHERE_METHODEN = {"GET", "HEAD", "OPTIONS"}
 _LOOPBACK_NAMEN = {"127.0.0.1", "localhost", "::1"}
 
@@ -105,6 +109,14 @@ def create_app(cfg: Config, nur_loopback: bool = False) -> FastAPI:
             StaticFiles(directory=str(vorlagen_ordner)),
             name="template-assets",
         )
+
+    if DESIGNSYSTEM.is_dir():
+        for ordner in ("sounds", "icons"):
+            app.mount(f"/ds/{ordner}", StaticFiles(directory=str(DESIGNSYSTEM / ordner)), name=f"ds-{ordner}")
+
+        @app.get("/ds/sounds.js", include_in_schema=False)
+        def ds_sounds() -> FileResponse:
+            return FileResponse(DESIGNSYSTEM / "sounds.js", media_type="text/javascript")
 
     # Erst hier importieren: die Module greifen auf get_conn aus diesem
     # Modul zu — ein Import auf Modulebene wäre zirkulär.

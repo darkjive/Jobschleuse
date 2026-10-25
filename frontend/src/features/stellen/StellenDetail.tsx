@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MousePointerClick } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import { useNavigate } from "react-router";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTaskErgebnis } from "@/hooks/useTaskErgebnis";
@@ -32,6 +32,15 @@ export function StellenDetail({ stelle, isLoading }: Props) {
   // Job-ID mitführen: die Komponente bleibt beim Wechsel der Stelle
   // gemountet, der Lauf gehört aber zu der Stelle, für die er gestartet wurde.
   const [erzeugen, setErzeugen] = useState<{ taskId: string; jobId: number } | null>(null);
+
+  // Hinweis als Toast statt Box im Detail, der den Inhalt verschiebt
+  const goneAt = stelle?.gone_at;
+  const stelleId = stelle?.id;
+  useEffect(() => {
+    if (goneAt) {
+      toast.error(`Diese Anzeige ist bei der Quelle nicht mehr vorhanden (erkannt am ${goneAt.slice(0, 10)}).`);
+    }
+  }, [stelleId, goneAt]);
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: "selected" | "rejected" }) =>
@@ -95,13 +104,6 @@ export function StellenDetail({ stelle, isLoading }: Props) {
           {stelle.company} · {stelle.location}
         </p>
       </div>
-
-      {stelle.gone_at && (
-        <p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-          Diese Anzeige ist bei der Quelle nicht mehr vorhanden. Sie wurde am{" "}
-          {stelle.gone_at.slice(0, 10)} als nicht mehr verfügbar erkannt.
-        </p>
-      )}
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
         <Fakt label="Quelle" wert={stelle.source_partner || stelle.external_host} />
