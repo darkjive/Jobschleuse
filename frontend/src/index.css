@@ -5,12 +5,12 @@
 @custom-variant dark (&:is([data-theme="dark"] *));
 
 /* Design-System: Tokens, Basis, Komponenten und Tailwind/shadcn-Mapping zentral
-   in ../../Designsystem (Fonts werden in main.tsx importiert). */
-@import "../../../Designsystem/tokens.css";
-@import "../../../Designsystem/base.css" layer(base);
-@import "../../../Designsystem/components.css" layer(components);
-@import "../../../Designsystem/shadcn.css";
-@import "../../../Designsystem/tailwind-scale.css";
+   in ../../Harmonia (Fonts werden in main.tsx importiert). */
+@import "../../../Harmonia/tokens.css";
+@import "../../../Harmonia/base.css" layer(base);
+@import "../../../Harmonia/components.css" layer(components);
+@import "../../../Harmonia/shadcn.css";
+@import "../../../Harmonia/tailwind-scale.css";
 
 @theme inline {
   --font-heading: var(--font-sans);

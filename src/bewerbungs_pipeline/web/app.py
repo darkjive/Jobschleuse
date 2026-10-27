@@ -17,9 +17,9 @@ HIER = Path(__file__).parent
 # Verzeichnis wird committed — kein Node zur Laufzeit nötig (siehe Spec).
 FRONTEND_DIST = HIER.parent.parent.parent / "frontend" / "dist"
 
-# Laufzeitdateien des Designsystems (sounds.js lädt Töne und Icon-Sprite nach); nur diese, nicht das ganze
+# Laufzeitdateien von Harmonia (sounds.js lädt Töne und Icon-Sprite nach); nur diese, nicht das ganze
 # Checkout (enthält .git). Fehlt der Ordner, bleibt die Seite ohne Sounds.
-DESIGNSYSTEM = HIER.parent.parent.parent.parent / "Designsystem"
+DESIGNSYSTEM = HIER.parent.parent.parent.parent / "Harmonia"
 
 _SICHERE_METHODEN = {"GET", "HEAD", "OPTIONS"}
 _LOOPBACK_NAMEN = {"127.0.0.1", "localhost", "::1"}

@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { HeaderActionsOutlet, HeaderActionsProvider } from "@/lib/header-actions";
 
 function Header() {
-  // Designsystem-Soundschalter (/ds/sounds.js) in die Header-Aktionen einhängen
+  // Harmonia-Soundschalter (/ds/sounds.js) in die Header-Aktionen einhängen
   const soundRef = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     const host = soundRef.current;

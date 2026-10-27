@@ -11,7 +11,7 @@ export default defineConfig({
     },
   },
   server: {
-    fs: { allow: ['.', '../../Designsystem'] },
+    fs: { allow: ['.', '../../Harmonia'] },
     proxy: {
       '/api': 'http://127.0.0.1:8765',
       '/applications': 'http://127.0.0.1:8765',

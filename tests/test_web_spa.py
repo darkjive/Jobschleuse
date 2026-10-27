@@ -49,7 +49,7 @@ def test_designsystem_laufzeitdateien_werden_ausgeliefert(tmp_path):
     from bewerbungs_pipeline.web.app import DESIGNSYSTEM
 
     if not DESIGNSYSTEM.is_dir():
-        return  # Designsystem-Checkout fehlt (z. B. CI): Seite läuft ohne Sounds
+        return  # Harmonia-Checkout fehlt (z. B. CI): Seite läuft ohne Sounds
     client = TestClient(create_app(make_cfg(tmp_path)))
     assert client.get("/ds/sounds.js").status_code == 200
     assert client.get("/ds/icons/sprite.svg").status_code == 200

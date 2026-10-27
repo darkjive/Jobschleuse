@@ -1,7 +1,7 @@
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { X } from "lucide-react"
 
-// sonner übernimmt Stapel, Position und Animation; Optik und Farben kommen von .ds-toast (Designsystem).
+// sonner übernimmt Stapel, Position und Animation; Optik und Farben kommen von .ds-toast (Harmonia).
 const Toaster = ({ ...props }: ToasterProps) => (
   <Sonner
     position="bottom-center"

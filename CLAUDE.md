@@ -31,6 +31,6 @@ Frontend-Arbeit passiert in `frontend/` (Vite + React + TypeScript + shadcn/ui) 
 
 Release Notes liegen datiert unter `docs/releases/`.
 
-## UI-Regel (Designsystem)
+## UI-Regel (Harmonia)
 
-UI nur mit `/home/a/Dev/Designsystem/` (Einbindung: `Designsystem/README.md`). Keine eigenen Hex-Farben, px-Schriftgrößen oder Abstände – nur Tokens (`--fs-*`, `--space-*`, `--r-*`, Farbvariablen). Fehlende Komponenten ins Designsystem, nicht in die App.
+UI nur mit `/home/a/Dev/Harmonia/` (Einbindung: `Harmonia/README.md`). Keine eigenen Hex-Farben, px-Schriftgrößen oder Abstände – nur Tokens (`--fs-*`, `--space-*`, `--r-*`, Farbvariablen). Fehlende Komponenten ins Harmonia, nicht in die App.
