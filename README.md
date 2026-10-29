@@ -20,6 +20,8 @@ Indeed, reichert sie um Fakten an, die die Trefferliste allein nicht hergibt
 verschwundene Anzeigen von selbst und füllt für die ausgewählten eine
 Bewerbungsvorlage per LLM.
 
+![Datenfluss: Bundesagentur und Indeed → Abruf mit Anreicherung → SQLite → ausgewählte Stelle → Slots per LLM füllen → Export als PDF und HTML](docs/architecture.svg)
+
 ## Funktionsumfang
 
 | Bereich | Beschreibung |
